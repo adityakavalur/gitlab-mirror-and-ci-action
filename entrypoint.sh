@@ -54,6 +54,7 @@ fi
 echo "Triggered CI for branch ${branch}"
 echo "Working with pipeline id #${pipeline_id}"
 echo "Poll timeout set to ${POLL_TIMEOUT}"
+echo "Hello World3!"
 
 ci_status="pending"
 
