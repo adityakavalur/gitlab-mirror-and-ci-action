@@ -74,6 +74,9 @@ do
 done
 
 echo "Pipeline finished with status ${ci_status}"
+
+#Delete remote branch
+sh -c "git push mirror --delete $branch"
   
 if [ "$ci_status" = "success" ]
 then 
