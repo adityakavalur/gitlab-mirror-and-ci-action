@@ -25,8 +25,11 @@ echo "github.event_name $GITHUB_EVENT_NAME"
 if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
 then
    git checkout "${GITHUB_HEAD_REF}"
+elif [  "${GITHUB_EVENT_NAME}" = "push"  ]
+then
+   git checkout "${GITHUB_REF:11}"
 else
-   echo "Only PR testing is supported currently. CI will exit"
+   echo "Only PR and Push testing are currently supported. CI will exit"
    exit 1
 fi
 
@@ -76,8 +79,12 @@ done
 
 echo "Pipeline finished with status ${ci_status}"
 
-#Delete remote branch
-sh -c "git push mirror --delete $branch"
+#Delete remote branch if PR
+if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
+then
+   sh -c "git push mirror --delete $branch"
+fi
+
   
 if [ "$ci_status" = "success" ]
 then 
