@@ -22,8 +22,11 @@ DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
 git checkout "${GITHUB_REF:11}"
-echo "Hello World!"
+echo "Hello World1!"
 echo $(git branch -a)
+
+sh -c "echo Hello World2!"
+sh -c "echo $(git branch -a)"
 
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
