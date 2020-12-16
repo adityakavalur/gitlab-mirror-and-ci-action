@@ -11,7 +11,7 @@ This is an example of a pipeline that uses this action:
 ```workflow
 name: Mirror and run GitLab CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -28,6 +28,7 @@ jobs:
         GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }} // Generate here: https://gitlab.com/profile/personal_access_tokens
         GITLAB_PROJECT_ID: "<GitLab project ID>"
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} // https://help.github.com/en/articles/virtual-environments-for-github-actions#github_token-secret
+        GITHUB_EVENT_NAME: github.event_name
 ```
 
 Be sure to define the `GITLAB_PASSWORD` secret.
