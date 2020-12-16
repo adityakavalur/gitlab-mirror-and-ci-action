@@ -17,9 +17,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Mirror + trigger CI
-      uses: stenongithub/gitlab-mirror-and-ci-action@0.2.2
+      uses: adityakavalur/gitlab-mirror-and-ci-action@develop
       with:
         args: "https://gitlab.com/<namespace>/<repository>"
       env:
