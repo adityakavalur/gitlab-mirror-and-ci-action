@@ -21,7 +21,10 @@ urlencode() (
 DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
-git checkout "${GITHUB_REF:11}"
+#Aditya: PR modifications
+echo $GITHUB_HEAD_REF
+
+git checkout "${GITHUB_HEAD_REF:11}"
 echo "Hello World1!"
 echo $GITHUB_REF
 echo $(git branch -a)
