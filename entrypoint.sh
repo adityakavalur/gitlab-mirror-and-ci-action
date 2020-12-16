@@ -21,19 +21,14 @@ urlencode() (
 DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
-#Aditya: PR modifications
-echo $GITHUB_HEAD_REF
-
-echo "github.event $GITHUB_EVENT"
 echo "github.event_name $GITHUB_EVENT_NAME"
-
-git checkout "${GITHUB_HEAD_REF}"
-echo "Hello World1!"
-echo $GITHUB_REF
-echo $(git branch -a)
-
-sh -c "echo Hello World2!"
-sh -c "echo $(git branch -a)"
+if [ "GITHUB_EVENT_NAME" = "pull_request"]
+then
+   git checkout "${GITHUB_HEAD_REF}"
+else
+   echo "Only PR testing is supported currently. CI will exit"
+   exit 1
+fi
 
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
@@ -61,7 +56,6 @@ fi
 echo "Triggered CI for branch ${branch}"
 echo "Working with pipeline id #${pipeline_id}"
 echo "Poll timeout set to ${POLL_TIMEOUT}"
-echo "Hello World3!"
 
 ci_status="pending"
 
