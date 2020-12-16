@@ -24,7 +24,7 @@ POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 #Aditya: PR modifications
 echo $GITHUB_HEAD_REF
 
-git checkout "${GITHUB_HEAD_REF:11}"
+git checkout "${GITHUB_HEAD_REF}"
 echo "Hello World1!"
 echo $GITHUB_REF
 echo $(git branch -a)
