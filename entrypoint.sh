@@ -23,6 +23,9 @@ POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
 echo "CI job triggered by event- $GITHUB_EVENT_NAME"
 echo "list all branches: $(git branch -a)"
+echo "list github_head_ref: $GITHUB_HEAD_REF"
+echo "list github_base_ref: $GITHUB_BASE_REF"
+echo "list github_ref: $GITHUB_REF"
 
 if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
 then
