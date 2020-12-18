@@ -90,7 +90,7 @@ done
 echo "Pipeline finished with status ${ci_status}"
 
 #Delete remote branch if PR
-if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
+if [ "${GITHUB_EVENT_NAME}" = "pull_request" || "${GITHUB_EVENT_NAME}" = "pull_request_target" ]
 then
    sh -c "git push mirror --delete $branch"
 fi
