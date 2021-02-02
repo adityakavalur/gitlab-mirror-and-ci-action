@@ -65,8 +65,8 @@ then
    commitauthor=$(git log -n 1 main | grep Author | awk '{print $2}')
    echo "commit author $commitauthor"
    grep "$commitauthor" /tmp/github_usernames
-   run_push = $?
-   if [ "${run_push}" = "1" ]
+   run_push=$?
+   if [ "${run_push}" != "0" ]
    then
       echo "Commit author ${commitauthor} not associated with repository. CI will exit"
       exit 1
