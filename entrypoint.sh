@@ -59,11 +59,20 @@ else
 fi
 
 
+branch="$(git symbolic-ref --short HEAD)"
+branch_uri="$(urlencode ${branch})"
+
+if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
+then
+   git log -n 1 ${branch}
+fi
+
 if [  "${GITHUB_EVENT_NAME}" = "push"  ]
 then
    #commit author
-   commitauthor=$(git log -n 1 main | grep Author | awk '{print $2}')
+   commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
    echo "commit author $commitauthor"
+   echo "branch $branch"
    grep "$commitauthor" /tmp/github_usernames
    run_push=$?
    if [ "${run_push}" != "0" ]
@@ -73,8 +82,7 @@ then
     fi
 fi
 
-branch="$(git symbolic-ref --short HEAD)"
-branch_uri="$(urlencode ${branch})"
+
 
 sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
