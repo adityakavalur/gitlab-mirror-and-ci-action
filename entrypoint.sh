@@ -64,7 +64,7 @@ then
    #commit author
    commitauthor=$(git log -n 1 main | grep Author | awk '{print $2}')
    echo "commit author $commitauthor"
-   grep "$username" /tmp/github_usernames
+   grep "$commitauthor" /tmp/github_usernames
    run_push = $?
    if [ "${run_push}" = "1" ]
    then
