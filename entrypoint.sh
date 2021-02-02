@@ -43,9 +43,8 @@ else
    exit 1
 fi
 
-#commit author
-commitauthor="$(git log -n 1 main | grep Author | awk '{print $2}')"
-echo "commit author $commitauthor"
+
+
 
 #list of pre-approved commiters based on whether repo is in username space or organization
 touch /dev/null > /tmp/github_usernames
@@ -59,9 +58,20 @@ else
    curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep login | head -n 1 | awk '{print $2}' > /tmp/github_usernames   
 fi
 
-grep "$username" /tmp/github_usernames
-echo $?
-echo "check username in list"
+
+if [  "${GITHUB_EVENT_NAME}" = "push"  ]
+then
+   #commit author
+   commitauthor="$(git log -n 1 main | grep Author | awk '{print $2}')"
+   echo "commit author $commitauthor"
+   grep "$username" /tmp/github_usernames
+   run_push = $?
+   if [ "${run_push}" = "1" ]
+   then
+      echo "Commit author ${commitauthor} not associated with repository. CI will exit"
+      exit 1
+    fi
+fi
 
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
