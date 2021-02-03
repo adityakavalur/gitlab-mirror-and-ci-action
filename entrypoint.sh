@@ -131,7 +131,7 @@ sh -c "git push mirror $branch"
 sleep $POLL_TIMEOUT
 
 pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${branch_uri}" | jq '.last_pipeline.id')
-
+echo "entrypoint: line134"
 if [ "${pipeline_id}" = "null" ]
 then
     echo "pipeline_id is null, so we can't continue."
@@ -160,7 +160,7 @@ do
      curl -d '{"state":"pending", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"  > /dev/null 
    fi
 done
-
+echo "entrypoint: line163"
 echo "Pipeline finished with status ${ci_status}"
 
 #Delete remote branch if PR
@@ -169,7 +169,7 @@ then
    sh -c "git push mirror --delete $branch"
 fi
 
-  
+echo "entrypoint: line172"  
 if [ "$ci_status" = "success" ]
 then 
   curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" 
