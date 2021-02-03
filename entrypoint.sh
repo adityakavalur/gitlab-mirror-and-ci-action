@@ -69,14 +69,14 @@ branch_uri="$(urlencode ${branch})"
 commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
 grep "$commitauthor" /tmp/github_usernames
 preapproved=$?
-if [ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "push" ]
+if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "push" ]]
 then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
    exit 1
 fi
 echo "entrypoint: line75"
 #check if someone from the pre-approved user list has commented with the triggerstring
-if [  "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "pull_request" ]
+if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "pull_request" ]]
 then
    PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
    
@@ -84,7 +84,7 @@ then
    ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length)
    approval_comment=1
    icomment=ncomments
-   while [ "$approval_comment" != "0" && "$icomment" -gt 0 ]
+   while [[ "$approval_comment" != "0" && "$icomment" -gt 0 ]]
    do
       icomment=icomment-1
       echo "icomment $icomment"
