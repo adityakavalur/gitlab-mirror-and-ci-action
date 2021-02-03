@@ -49,7 +49,9 @@ fi
 echo "entrypoint: line49"
 #list of pre-approved commiters based on whether repo is in username space or organization
 touch /dev/null > /tmp/github_usernames
-
+pwd
+ls -la /tmp
+ls -la .
 org_type=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep type | head -n 1 | awk '{print $2}' | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
 if [ "${org_type}" = "Organization" ]
 then
