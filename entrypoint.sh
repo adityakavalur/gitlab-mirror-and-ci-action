@@ -28,6 +28,7 @@ echo "list github_base_ref: $GITHUB_BASE_REF"
 echo "list github_ref: $GITHUB_REF"
 echo "list github repo: $GITHUB_REPOSITORY"
 
+#Allowed events
 if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
 then
    git checkout "${GITHUB_HEAD_REF}"
@@ -62,25 +63,58 @@ fi
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
 
-if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
+#Approval section
+commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
+grep "$commitauthor" /tmp/github_usernames
+preapproved=$?
+if [ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "push" ]
 then
-   git log -n 1 ${branch}
+   echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
+   exit 1
 fi
 
-if [  "${GITHUB_EVENT_NAME}" = "push"  ]
+#check if someone from the pre-approved user list has commented with the triggerstring
+if [  "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "pull_request" ]
 then
-   #commit author
-   commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
-   echo "commit author $commitauthor"
-   echo "branch $branch"
-   grep "$commitauthor" /tmp/github_usernames
-   run_push=$?
-   if [ "${run_push}" != "0" ]
+   PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
+   
+   #number of comments
+   ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length)
+   approval_comment=1
+   icomment=ncomments
+   while [ "$approval_comment" != "0" && "$icomment" -gt 0 ]
+   do
+      icomment=icomment-1
+      echo "icomment $icomment"
+      #check comment for string
+      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | | {body: .body}" | grep "triggerstring"
+      approval_comment=$?
+      #if string matches check if commenter belongs to the pre-approved list
+      if [ "$approval_comment" = "0" ]
+      then
+         commentauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | | {commenter: .user.login}" | jq ".commenter")
+         grep "$commentauthor" /tmp/github_usernames
+         approval_comment=$?
+      fi
+   done
+   
+   #found the latest approval comment, run CI if commit is from earlier time than comment creation
+   if [ "$approval_comment" != "0" ]
    then
-      echo "Commit author ${commitauthor} not associated with repository. CI will exit"
+      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo need to comment to run CI. CI will exit"
       exit 1
-    fi
+   fi
+   commit_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/${branch} | jq ".commit.author.date")
+   comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | | {created_at: .created_at}" | jq ".created_at")
+   if [[ "$comment_date" < "$commit_date" ]]
+   then
+      echo "Each new commit requires a new comment to run CI. CI will exit"
+      exit 1 
+   fi
+   
 fi
+
+
 
 
 
