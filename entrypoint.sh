@@ -104,7 +104,7 @@ then
    icomment=${ncomments}
    while [[ "${approval_comment}" != "0" && "${icomment}" -gt 0 ]]
    do
-      icomment=icomment-1
+      icomment=${icomment}-1
       echo "icomment $icomment"
       #check comment for string
       curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | | {body: .body}" | grep "triggerstring"
