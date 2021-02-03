@@ -98,7 +98,7 @@ then
    ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length)
    approval_comment=1
    icomment=ncomments
-   while [[ "$approval_comment" != "0" && "$icomment" -gt 0 ]]
+   while [[ "${approval_comment}" != "0" && "${icomment}" -gt 0 ]]
    do
       icomment=icomment-1
       echo "icomment $icomment"
@@ -106,7 +106,7 @@ then
       curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | | {body: .body}" | grep "triggerstring"
       approval_comment=$?
       #if string matches check if commenter belongs to the pre-approved list
-      if [ "$approval_comment" = "0" ]
+      if [ "${approval_comment}" = "0" ]
       then
          commentauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | | {commenter: .user.login}" | jq ".commenter")
          grep "$commentauthor" /tmp/github_usernames
@@ -115,7 +115,7 @@ then
    done
    echo "entrypoint: line100"
    #found the latest approval comment, run CI if commit is from earlier time than comment creation
-   if [ "$approval_comment" != "0" ]
+   if [ "${approval_comment}" != "0" ]
    then
       echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo need to comment to run CI. CI will exit"
       exit 1
