@@ -96,10 +96,12 @@ then
    
    #number of comments
    curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments
+   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length
    echo "PR_NUMBER ${PR_NUMBER}"
    ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length)
+   echo "ncomments ${ncomments}"
    approval_comment=1
-   icomment=ncomments
+   icomment=${ncomments}
    while [[ "${approval_comment}" != "0" && "${icomment}" -gt 0 ]]
    do
       icomment=icomment-1
