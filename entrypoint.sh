@@ -132,7 +132,8 @@ then
    comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
    echo "comment_date $comment_date"
    echo "commit_date $commit_date"
-   if [[ "$comment_date" < "$commit_date" ]]
+   # Dont run CI if comment date is older than commit date
+   if [[ "$comment_date" > "$commit_date" ]]
    then
       echo "Each new commit requires a new comment to run CI. CI will exit"
       exit 1 
