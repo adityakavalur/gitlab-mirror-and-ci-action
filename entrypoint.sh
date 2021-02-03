@@ -67,8 +67,13 @@ branch_uri="$(urlencode ${branch})"
 
 #Approval section
 commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
+echo "commitauthor ${commitauthor}"
+echo "github pre-approved usernames"
+cat /tmp/github_usernames
+
 grep "$commitauthor" /tmp/github_usernames
 preapproved=$?
+echo "preapproved ${preapproved}"
 if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "push" ]]
 then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
