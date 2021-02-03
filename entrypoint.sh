@@ -46,7 +46,7 @@ fi
 
 
 
-
+echo "entrypoint: line49"
 #list of pre-approved commiters based on whether repo is in username space or organization
 touch /dev/null > /tmp/github_usernames
 
@@ -59,7 +59,7 @@ else
    curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep login | head -n 1 | awk '{print $2}' > /tmp/github_usernames   
 fi
 
-
+echo "entrypoint: line62"
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
 
@@ -72,7 +72,7 @@ then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
    exit 1
 fi
-
+echo "entrypoint: line75"
 #check if someone from the pre-approved user list has commented with the triggerstring
 if [  "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "pull_request" ]
 then
@@ -97,7 +97,7 @@ then
          approval_comment=$?
       fi
    done
-   
+   echo "entrypoint: line100"
    #found the latest approval comment, run CI if commit is from earlier time than comment creation
    if [ "$approval_comment" != "0" ]
    then
@@ -114,7 +114,7 @@ then
    
 fi
 
-
+echo "entrypoint: line117"
 
 
 
