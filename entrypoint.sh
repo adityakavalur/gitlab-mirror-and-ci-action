@@ -138,7 +138,6 @@ then
       echo "Each new commit requires a new comment to run CI. CI will exit"
       exit 1 
    fi
-   
 fi
 
 echo "entrypoint: line117"
