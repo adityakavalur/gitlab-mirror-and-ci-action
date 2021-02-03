@@ -66,7 +66,16 @@ branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
 
 #Approval section
-commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
+
+if [ "${GITHUB_EVENT_NAME}" = "push" ]
+then
+   commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
+   commitauthor=\"${commitauthor}\"
+else
+   PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
+   commitauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER} | jq ".user.login")
+fi
+
 echo "commitauthor ${commitauthor}"
 echo "github pre-approved usernames"
 cat /tmp/github_usernames
