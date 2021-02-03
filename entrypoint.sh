@@ -125,7 +125,7 @@ then
       exit 1
    fi
    commit_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/${branch} | jq ".commit.author.date")
-   comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {created_at: .created_at}" | jq ".created_at")
+   comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
    if [[ "$comment_date" < "$commit_date" ]]
    then
       echo "Each new commit requires a new comment to run CI. CI will exit"
