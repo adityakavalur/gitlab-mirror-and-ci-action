@@ -44,7 +44,18 @@ else
    exit 1
 fi
 
+# Check if the workflow has all the necessary passwords
+if [[ -z "$GITHUB_TOKEN" ]]
+then
+   echo "GITHUB_TOKEN is empty"
+   exit 1
+fi
 
+if [[ -z "$GITLAB_PASSWORD" ]]
+then
+   echo "GITLAB_PASSWORD is empty"
+   exit 1
+fi
 
 echo "entrypoint: line49"
 #list of pre-approved commiters based on whether repo is in username space or organization
