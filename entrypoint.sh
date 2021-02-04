@@ -136,7 +136,7 @@ then
    #Label check route
    #entries associated with labels
    nlabels=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq length)
-   if [[ "${ncomments}" = "0" ]]
+   if [[ "${nlabels}" = "0" ]]
    then
       echo "Commit author not in trusted list and no approval label. CI will exit"
       exit 1 
