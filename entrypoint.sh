@@ -197,7 +197,6 @@ then
       echo "Each new commit requires (re)adding label to run CI. CI will exit"
       exit 1 
    fi
-
 fi
 
 echo "entrypoint: line117"
