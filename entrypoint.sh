@@ -143,7 +143,7 @@ then
    fi
    approval_label=1
    ilabel=${nlabels}
-   while [[ "${approval_comment}" != "0" && "${ilabel}" -gt 0 ]]
+   while [[ "${approval_label}" != "0" && "${ilabel}" -gt 0 ]]
    do
       ilabel=$(($ilabel - 1))
       curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
@@ -162,9 +162,9 @@ then
    done
    
    #found the latest approval comment, run CI if commit is from earlier time than comment creation
-   if [ "${approval_comment}" != "0" ]
+   if [ "${approval_label}" != "0" ]
    then
-      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo need to comment to run CI. CI will exit"
+      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo needs to add label to run CI. CI will exit"
       exit 1
    fi
    
@@ -192,7 +192,7 @@ then
 #      exit 1 
 #   fi
    # Dont run CI if label add date is older than commit date
-   if [[ "$comment_date" > "$commit_date" && "${ilabel}" -ge 0 ]]
+   if [[ "$label_date" > "$commit_date" && "${ilabel}" -ge 0 ]]
    then
       echo "Each new commit requires (re)adding label to run CI. CI will exit"
       exit 1 
