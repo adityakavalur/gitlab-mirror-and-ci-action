@@ -192,7 +192,7 @@ then
 #      exit 1 
 #   fi
    # Dont run CI if label add date is older than commit date
-   if [[ "${label_date}" > "${commit_date}" && "${ilabel}" -ge 0 ]]
+   if [[ "${label_date}" < "${commit_date}" && "${ilabel}" -ge 0 ]]
    then
       echo "Each new commit requires (re)adding label to run CI. CI will exit"
       exit 1 
