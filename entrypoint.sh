@@ -35,10 +35,10 @@ then
 elif [  "${GITHUB_EVENT_NAME}" = "push"  ]
 then
    git checkout "${GITHUB_REF:11}"
-elif [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]
-then
-   echo "You are running pull request target, make sure your settings are secure."
-   git checkout "${GITHUB_HEAD_REF}"
+#elif [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]
+#then
+#   echo "You are running pull request target, make sure your settings are secure."
+#   git checkout "${GITHUB_HEAD_REF}"
 else
    echo "Only PR and Push testing are currently supported. CI will exit"
    exit 1
