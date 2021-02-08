@@ -83,6 +83,7 @@ then
    commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
    commitauthor=\"${commitauthor}\"
 else
+   echo "PR_NUMBER $PR_NUMBER"
    PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
    commitauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER} | jq ".user.login")
 fi
