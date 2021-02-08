@@ -223,6 +223,12 @@ then
 fi
 
 
+if [[ -z "$GITLAB_PASSWORD" ]]
+then
+   echo "GITLAB_PASSWORD is empty"
+   exit 1
+fi
+
 sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
 sh -c "git config --global credential.helper cache"
