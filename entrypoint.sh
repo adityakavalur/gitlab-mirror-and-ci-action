@@ -92,7 +92,6 @@ then
    commitauthor=\"${commitauthor}\"
 else
    echo "PR_NUMBER $PR_NUMBER"
-   PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
    commitauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER} | jq ".user.login")
 fi
 
@@ -112,7 +111,6 @@ echo "entrypoint: line75"
 #check if someone from the pre-approved user list has commented with the triggerstring
 if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "pull_request" ]]
 then
-   PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
    
    #Comment check route
    #number of comments
