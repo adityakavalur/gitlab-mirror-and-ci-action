@@ -22,11 +22,6 @@ DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
 echo "CI job triggered by event- $GITHUB_EVENT_NAME"
-echo "list all branches: $(git branch -a)"
-echo "list github_head_ref: $GITHUB_HEAD_REF"
-echo "list github_base_ref: $GITHUB_BASE_REF"
-echo "list github_ref: $GITHUB_REF"
-echo "list github repo: $GITHUB_REPOSITORY"
 
 #Allowed events
 if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
@@ -51,6 +46,14 @@ else
    echo "Only PR and Push testing are currently supported. CI will exit"
    exit 1
 fi
+
+echo "list all branches: $(git branch -a)"
+echo "list github_head_ref: $GITHUB_HEAD_REF"
+echo "list github_base_ref: $GITHUB_BASE_REF"
+echo "list github_ref: $GITHUB_REF"
+echo "list github repo: $GITHUB_REPOSITORY"
+echo "list fork repo (if pr from fork): $fork_repo"
+
 
 # Check if the workflow has all the necessary passwords
 if [[ -z "$GITHUB_TOKEN" ]]
