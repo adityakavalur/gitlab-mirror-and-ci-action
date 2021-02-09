@@ -41,6 +41,7 @@ then
    GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/35 | jq .head.ref)
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
+   git branch -m external-pr-${PR_NUMBER}
 #   git checkout "${GITHUB_HEAD_REF}"
 else
    echo "Only PR and Push testing are currently supported. CI will exit"
@@ -83,9 +84,11 @@ else
    curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep login | head -n 1 | awk '{print $2}' > /tmp/github_usernames   
 fi
 
-echo "entrypoint: line62"
+
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
+echo "branch:l90: $branch"
+
 
 #Approval section
 
