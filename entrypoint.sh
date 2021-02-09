@@ -37,12 +37,11 @@ then
    rm -rf * .*
    fork_repo=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/${PR_NUMBER} | jq .head.repo.clone_url)
    fork_repo="${fork_repo:1:${#fork_repo}-2}"
-   git clone ${fork_repo} .
+   git clone --quiet ${fork_repo} .
    GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/35 | jq .head.ref)
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
    git branch -m external-pr-${PR_NUMBER}
-#   git checkout "${GITHUB_HEAD_REF}"
 else
    echo "Only PR and Push testing are currently supported. CI will exit"
    exit 1
@@ -55,26 +54,8 @@ echo "list github_ref: $GITHUB_REF"
 echo "list github repo: $GITHUB_REPOSITORY"
 echo "list fork repo (if pr from fork): ${fork_repo}"
 
-
-# Check if the workflow has all the necessary passwords
-if [[ -z "$GITHUB_TOKEN" ]]
-then
-   echo "GITHUB_TOKEN is empty"
-   exit 1
-fi
-
-if [[ -z "$GITLAB_PASSWORD" ]]
-then
-   echo "GITLAB_PASSWORD is empty"
-#   exit 1
-fi
-
-echo "entrypoint: line49"
 #list of pre-approved commiters based on whether repo is in username space or organization
 touch /dev/null > /tmp/github_usernames
-pwd
-ls -la /tmp
-ls -la .
 org_type=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep type | head -n 1 | awk '{print $2}' | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
 if [ "${org_type}" = "Organization" ]
 then
@@ -87,7 +68,6 @@ fi
 
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
-echo "branch:l90: $branch"
 
 
 #Approval section
@@ -113,14 +93,13 @@ then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
    exit 1
 fi
-echo "entrypoint: line75"
+
 #check if someone from the pre-approved user list has commented with the triggerstring
 if [[ "${preapproved}" != "0" ]] && [[ "${GITHUB_EVENT_NAME}" = "pull_request" || "${GITHUB_EVENT_NAME}" = "pull_request_target" ]]
 then
    
    #Comment check route
    #number of comments
-   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments
    curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length
    echo "PR_NUMBER ${PR_NUMBER}"
    ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length)
@@ -148,14 +127,13 @@ then
       fi
    done
    
-   echo "entrypoint: line100"
+
    #found the latest approval comment, run CI if commit is from earlier time than comment creation
    if [ "${approval_comment}" != "0" ]
    then
       echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo need to comment to run CI. CI will exit"
       exit 1
    fi
-   echo "icomment ${icomment}"
 
    #Label check route
    #entries associated with labels
@@ -223,24 +201,6 @@ then
    fi
 fi
 
-echo "entrypoint: line117"
-
-#The token is visible in API calls below, however, masking it here
-if [[ -z "$GITLAB_PASSWORD" ]]
-then
-   builtin echo -e "#!/usr/bin/env bash
-   builtin echo ${GITLAB_PASSWORD_COPY}" > gitlab_password
-   chmod +x gitlab_password
-   export GITLAB_PASSWORD=gitlab_password
-   rm -f gitlab_password
-fi
-
-
-if [[ -z "$GITLAB_PASSWORD" ]]
-then
-   echo "GITLAB_PASSWORD is empty"
-   exit 1
-fi
 
 sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
@@ -253,7 +213,7 @@ sh -c "git push mirror $branch"
 sleep $POLL_TIMEOUT
 
 pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${branch_uri}" | jq '.last_pipeline.id')
-echo "entrypoint: line134"
+
 if [ "${pipeline_id}" = "null" ]
 then
     echo "pipeline_id is null, so we can't continue."
@@ -282,7 +242,7 @@ do
      curl -d '{"state":"pending", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"  > /dev/null 
    fi
 done
-echo "entrypoint: line163"
+
 echo "Pipeline finished with status ${ci_status}"
 
 #Delete remote branch if PR
@@ -291,7 +251,6 @@ then
    sh -c "git push mirror --delete $branch"
 fi
 
-echo "entrypoint: line172"  
 if [ "$ci_status" = "success" ]
 then 
   curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" 
