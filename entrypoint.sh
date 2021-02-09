@@ -210,7 +210,7 @@ then
 
    
    # Dont run CI if comment date is older than commit date
-   if [[ "$comment_date" > "$commit_date" && "${icomment}" -ge 0 ]]
+   if [[ "$comment_date" < "$commit_date" && "${icomment}" -ge 0 ]]
    then
       echo "Each new commit requires a new comment to run CI. CI will exit"
       exit 1 
