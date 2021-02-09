@@ -52,7 +52,11 @@ echo "list github_head_ref: $GITHUB_HEAD_REF"
 echo "list github_base_ref: $GITHUB_BASE_REF"
 echo "list github_ref: $GITHUB_REF"
 echo "list github repo: $GITHUB_REPOSITORY"
-echo "list fork repo (if pr from fork): ${fork_repo}"
+
+if [[ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]]
+then
+   echo "list fork repo (if pr from fork): ${fork_repo}"
+fi
 
 echo "entrypoint:l57"
 
