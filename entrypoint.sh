@@ -112,7 +112,7 @@ then
 fi
 echo "entrypoint: line75"
 #check if someone from the pre-approved user list has commented with the triggerstring
-if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "pull_request" ]]
+if [[ "${preapproved}" != "0" && ( "${GITHUB_EVENT_NAME}" = "pull_request" || "${GITHUB_EVENT_NAME}" = "pull_request_target" ) ]]
 then
    
    #Comment check route
