@@ -58,8 +58,6 @@ then
    echo "list fork repo (if pr from fork): ${fork_repo}"
 fi
 
-echo "entrypoint:l57"
-
 #list of pre-approved commiters based on whether repo is in username space or organization
 touch /dev/null > /tmp/github_usernames
 org_type=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep type | head -n 1 | awk '{print $2}' | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
@@ -71,12 +69,8 @@ else
    curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep login | head -n 1 | awk '{print $2}' > /tmp/github_usernames   
 fi
 
-echo "entrypoint:l70"
-
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
-
-echo "entrypoint:l75"
 
 #Approval section
 if [ "${GITHUB_EVENT_NAME}" = "push" ]
