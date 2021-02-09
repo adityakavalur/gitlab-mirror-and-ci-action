@@ -53,7 +53,7 @@ echo "list github_head_ref: $GITHUB_HEAD_REF"
 echo "list github_base_ref: $GITHUB_BASE_REF"
 echo "list github_ref: $GITHUB_REF"
 echo "list github repo: $GITHUB_REPOSITORY"
-echo "list fork repo (if pr from fork): $fork_repo"
+echo "list fork repo (if pr from fork): ${fork_repo}"
 
 
 # Check if the workflow has all the necessary passwords
