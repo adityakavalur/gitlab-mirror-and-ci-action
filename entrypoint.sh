@@ -38,7 +38,7 @@ then
    fork_repo=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/${PR_NUMBER} | jq .head.repo.clone_url)
    fork_repo="${fork_repo:1:${#fork_repo}-2}"
    git clone --quiet ${fork_repo} .
-   GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/35 | jq .head.ref)
+   GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/${PR_NUMBER} | jq .head.ref)
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
    git branch -m external-pr-${PR_NUMBER}
