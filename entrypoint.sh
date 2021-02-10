@@ -202,6 +202,17 @@ then
    fi
 fi
 
+#Assesing VM security
+echo "all running pid"
+ps -ef
+echo "current dir"
+pwd
+echo "list files"
+ls -la 
+echo "add file for persistence"
+touch persist
+echo "check if it exists"
+ls -l persist
 
 sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
