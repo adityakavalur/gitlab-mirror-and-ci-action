@@ -28,6 +28,7 @@ approvedcommitsha() (
     GITHUB_REPO=$3
     TARGET_BRANCH=$4
     
+    echo "GITHUB_USERNAME: $GITHUB_USERNAME" 
     echo "GITHUB_REPO: $GITHUB_REPO"
     echo "TARGET_BRANCH: $TARGET_BRANCH"
     
