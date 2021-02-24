@@ -34,7 +34,9 @@ approvedcommitsha() (
     while [[ "${approved}" != "0" && "${icommit}" -lt 100 ]]
     do
        icommit=$(($icommit+1))
+       echo "icommit: ${icommit}"
        commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
+       echo "commitauthor: ${commitauthor}"
        if [[ $commitauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
        sha=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
        ncomments=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/$sha/comments | jq length)
