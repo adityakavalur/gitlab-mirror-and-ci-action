@@ -18,6 +18,39 @@ urlencode() (
 )
 
 ##################################################################
+
+##################################################################
+#Approved commit sha
+approvedcommitsha() (
+    approved=1
+    GITHUB_TOKEN=$1
+    GITHUB_USERNAME=$2
+    GITHUB_REPOSITORY=$3
+    TARGET_BRANCH=$4
+    
+    
+    #API returns latest commit first
+    icommit=-1
+    while [[ "${approved}" != "0" && "${icommit}" -lt 100 ]]
+    do
+       icommit=$(($icommit+1))
+       commitauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
+       if [[ $commitauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
+       sha=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+       ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/$sha/comments | jq length)
+       icomment=${ncomments}
+       while [[ "${approved}" != "0" && "${icomment}" -gt 0 ]]
+       do
+          icomment=$(($icomment - 1))
+          commentauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/$sha/comments | jq ".[$icomment] | {commentauthor: .user.login}" | jq ".commentauthor")
+	  if [[ $commentauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
+       done
+    done
+    
+    if [[ ${approved} == "0" ]]; then printf "$sha"; else printf "nil"; fi
+)
+##################################################################
+
 DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
@@ -58,16 +91,11 @@ then
    echo "list fork repo (if pr from fork): ${fork_repo}"
 fi
 
-#list of pre-approved commiters based on whether repo is in username space or organization
-touch /dev/null > /tmp/github_usernames
-org_type=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep type | head -n 1 | awk '{print $2}' | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-if [ "${org_type}" = "Organization" ]
-then
-   org_name=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep login | head -n 1 | awk '{print $2}' | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/orgs/${org_name}/members | grep login | head -n 1 | awk '{print $2}' > /tmp/github_usernames
-else
-   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY} | grep login | head -n 1 | awk '{print $2}' > /tmp/github_usernames   
-fi
+
+
+#Retrieve Github username of SOURCE_PAT
+GITHUB_USERNAME=$(curl -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
+
 
 branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
@@ -75,20 +103,27 @@ branch_uri="$(urlencode ${branch})"
 #Approval section
 if [ "${GITHUB_EVENT_NAME}" = "push" ]
 then
-   commitauthor=$(git log -n 1 ${branch} | grep Author | awk '{print $2}')
-   commitauthor=\"${commitauthor}\"
+   #Get the latest commit sha on the target gitlab repository
+   base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
+   #Run through the recent 100 commits to find the latest than can be cloned
+   sha="$(approvedcommitsha ${GITHUB_TOKEN} ${GITHUB_USERNAME} ${GITHUB_REPOSITORY} ${TARGET_BRANCH})"
+
+   if [[ $sha != "nil" ]]
+   then
+      preapproved=0
+      git checkout $sha
 else
    echo "PR_NUMBER $PR_NUMBER"
    commitauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER} | jq ".user.login")
 fi
 
-echo "commitauthor ${commitauthor}"
-echo "github pre-approved usernames"
-cat /tmp/github_usernames
+#echo "commitauthor ${commitauthor}"
+#echo "github pre-approved usernames"
+#cat /tmp/github_usernames
 
-grep "$commitauthor" /tmp/github_usernames
-preapproved=$?
-echo "preapproved ${preapproved}"
+#grep "$commitauthor" /tmp/github_usernames
+#preapproved=$?
+#echo "preapproved ${preapproved}"
 if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "push" ]]
 then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
