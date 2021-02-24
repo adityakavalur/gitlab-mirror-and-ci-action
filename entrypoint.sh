@@ -28,6 +28,9 @@ approvedcommitsha() (
     GITHUB_REPOSITORY=$3
     TARGET_BRANCH=$4
     
+    echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+    echo "TARGET_BRANCH: $TARGET_BRANCH"
+    
     
     #API returns latest commit first
     icommit=-1
@@ -101,7 +104,9 @@ GITHUB_USERNAME=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" -H "Accept: 
 
 
 branch="$(git symbolic-ref --short HEAD)"
+echo "branch: l107: ${branch}"
 branch_uri="$(urlencode ${branch})"
+echo "branch: l109: ${branch_uri}"
 
 #Approval section
 if [ "${REPO_EVENT_TYPE}" = "push" ]
