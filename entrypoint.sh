@@ -54,7 +54,7 @@ approvedcommitsha() (
 DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
-echo "CI job triggered by event- $GITHUB_EVENT_NAME"
+echo "CI job triggered by event- $REPO_EVENT_TYPE"
 
 #Allowed events
 if [ "${REPO_EVENT_TYPE}" = "pull_request" ]
@@ -125,7 +125,7 @@ fi
 #grep "$commitauthor" /tmp/github_usernames
 #preapproved=$?
 #echo "preapproved ${preapproved}"
-if [[ "${preapproved}" != "0" && "${GITHUB_EVENT_NAME}" = "push" ]]
+if [[ "${preapproved}" != "0" && "${REPO_EVENT_TYPE}" = "push" ]]
 then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
    exit 1
