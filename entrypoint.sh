@@ -112,6 +112,7 @@ then
    then
       preapproved=0
       git checkout $sha
+   fi
 else
    echo "PR_NUMBER $PR_NUMBER"
    commitauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER} | jq ".user.login")
