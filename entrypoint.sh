@@ -25,10 +25,10 @@ approvedcommitsha() (
     approved=1
     GITHUB_PASSWORD=$1
     GITHUB_USERNAME=$2
-    GITHUB_REPOSITORY=$3
+    GITHUB_REPO=$3
     TARGET_BRANCH=$4
     
-    echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+    echo "GITHUB_REPO: $GITHUB_REPO"
     echo "TARGET_BRANCH: $TARGET_BRANCH"
     
     
@@ -38,16 +38,16 @@ approvedcommitsha() (
     do
        icommit=$(($icommit+1))
        echo "icommit: ${icommit}"
-       commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
+       commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
        echo "commitauthor: ${commitauthor}"
        if [[ $commitauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
-       sha=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-       ncomments=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/$sha/comments | jq length)
+       sha=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/?sha=${TARGET_BRANCH}&per_page=100 | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+       ncomments=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq length)
        icomment=${ncomments}
        while [[ "${approved}" != "0" && "${icomment}" -gt 0 ]]
        do
           icomment=$(($icomment - 1))
-          commentauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/$sha/comments | jq ".[$icomment] | {commentauthor: .user.login}" | jq ".commentauthor")
+          commentauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq ".[$icomment] | {commentauthor: .user.login}" | jq ".commentauthor")
 	  if [[ $commentauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
        done
     done
@@ -74,10 +74,10 @@ then
    echo "You are running pull request target, make sure your settings are secure, secrets are accessible."
    #Manual change of git
    rm -rf * .*
-   fork_repo=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/${PR_NUMBER} | jq .head.repo.clone_url)
+   fork_repo=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.repo.clone_url)
    fork_repo="${fork_repo:1:${#fork_repo}-2}"
    git clone --quiet ${fork_repo} .
-   GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/adityakavalur/pr-testing-github-workflow/pulls/${PR_NUMBER} | jq .head.ref)
+   GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref)
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
    git branch -m external-pr-${PR_NUMBER}
@@ -114,7 +114,7 @@ then
    #Get the latest commit sha on the target gitlab repository
    base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
-   sha="$(approvedcommitsha ${GITHUB_PASSWORD} ${GITHUB_USERNAME} ${GITHUB_REPOSITORY} ${TARGET_BRANCH})"
+   sha="$(approvedcommitsha ${GITHUB_PASSWORD} ${GITHUB_USERNAME} ${GITHUB_REPO} ${TARGET_BRANCH})"
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
@@ -123,7 +123,7 @@ then
    fi
 else
    echo "PR_NUMBER $PR_NUMBER"
-   commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER} | jq ".user.login")
+   commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER} | jq ".user.login")
 fi
 
 #echo "commitauthor ${commitauthor}"
@@ -145,9 +145,9 @@ then
    
    #Comment check route
    #number of comments
-   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length
+   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length
    echo "PR_NUMBER ${PR_NUMBER}"
-   ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq length)
+   ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length)
    echo "ncomments ${ncomments}"
    if [[ "${ncomments}" = "0" ]]
    then
@@ -161,12 +161,12 @@ then
       icomment=$(($icomment - 1))
       echo "icomment $icomment"
       #check comment for string
-      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
+      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
       approval_comment=$?
       #if string matches check if commenter belongs to the pre-approved list
       if [ "${approval_comment}" = "0" ]
       then
-         commentauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
+         commentauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
          grep "$commentauthor" /tmp/github_usernames
          approval_comment=$?
       fi
@@ -182,7 +182,7 @@ then
 
    #Label check route
    #entries associated with labels
-   nlabels=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq length)
+   nlabels=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq length)
    if [[ "${nlabels}" = "0" ]]
    then
       echo "Commit author not in trusted list and no approval label. CI will exit"
@@ -193,15 +193,15 @@ then
    while [[ "${approval_label}" != "0" && "${ilabel}" -gt 0 ]]
    do
       ilabel=$(($ilabel - 1))
-      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
+      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
       approval_label=$?
       if [ "${approval_label}" = "0" ]
       then
-         curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelname: .label.name}" | jq ".labelname" | grep \"triggerlabel\"
+         curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelname: .label.name}" | jq ".labelname" | grep \"triggerlabel\"
 	 approval_label=$?
 	 if [ "${approval_label}" = "0" ]
 	 then
-	    labelauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelauthor: .actor.login}" | jq ".labelauthor")
+	    labelauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelauthor: .actor.login}" | jq ".labelauthor")
 	    grep "$labelauthor" /tmp/github_usernames
             approval_label=$?
 	 fi
@@ -215,19 +215,19 @@ then
       exit 1
    fi
    
-   ncommits=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits | jq length)
+   ncommits=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
    ncommits=$(($ncommits - 1))
-   commit_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
+   commit_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
    echo "commit_date $commit_date"
    
    if [[ "${icomment}" -ge 0 ]] 
    then
-      comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
+      comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
    fi
    echo "comment_date $comment_date"
    if [[ "${ilabel}" -ge 0 ]] 
    then
-      label_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/timeline | jq ".[${ilabel}] | {created_at: .created_at}" | jq ".created_at")
+      label_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[${ilabel}] | {created_at: .created_at}" | jq ".created_at")
    fi
    echo "label_date $label_date"
 
