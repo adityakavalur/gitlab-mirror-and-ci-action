@@ -57,13 +57,13 @@ POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 echo "CI job triggered by event- $GITHUB_EVENT_NAME"
 
 #Allowed events
-if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]
+if [ "${REPO_EVENT_TYPE}" = "pull_request" ]
 then
    git checkout "${GITHUB_HEAD_REF}"
-elif [  "${GITHUB_EVENT_NAME}" = "push"  ]
+elif [  "${REPO_EVENT_TYPE}" = "push"  ]
 then
    git checkout "${GITHUB_REF:11}"
-elif [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]
+elif [ "${REPO_EVENT_TYPE}" = "pull_request_target" ]
 then
    echo "You are running pull request target, make sure your settings are secure, secrets are accessible."
    #Manual change of git
@@ -86,7 +86,7 @@ echo "list github_base_ref: $GITHUB_BASE_REF"
 echo "list github_ref: $GITHUB_REF"
 echo "list github repo: $GITHUB_REPOSITORY"
 
-if [[ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]]
+if [[ "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
 then
    echo "list fork repo (if pr from fork): ${fork_repo}"
 fi
@@ -101,7 +101,7 @@ branch="$(git symbolic-ref --short HEAD)"
 branch_uri="$(urlencode ${branch})"
 
 #Approval section
-if [ "${GITHUB_EVENT_NAME}" = "push" ]
+if [ "${REPO_EVENT_TYPE}" = "push" ]
 then
    #Get the latest commit sha on the target gitlab repository
    base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
@@ -132,7 +132,7 @@ then
 fi
 
 #check if someone from the pre-approved user list has commented with the triggerstring
-if [[ "${preapproved}" != "0" ]] && [[ "${GITHUB_EVENT_NAME}" = "pull_request" || "${GITHUB_EVENT_NAME}" = "pull_request_target" ]]
+if [[ "${preapproved}" != "0" ]] && [[ "${REPO_EVENT_TYPE}" = "pull_request" || "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
 then
    
    #Comment check route
@@ -294,7 +294,7 @@ done
 echo "Pipeline finished with status ${ci_status}"
 
 #Delete remote branch if PR
-if [[ "${GITHUB_EVENT_NAME}" = "pull_request" || "${GITHUB_EVENT_NAME}" = "pull_request_target" ]]
+if [[ "${REPO_EVENT_TYPE}" = "pull_request" || "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
 then
    sh -c "git push mirror --delete $branch"
 fi
