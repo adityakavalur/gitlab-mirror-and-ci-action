@@ -289,7 +289,7 @@ sh -c "git config --global credential.helper cache"
 sh -c "git remote add mirror $*"
 sh -c "echo pushing to $TARGET_BRANCH branch at $(git remote get-url --push mirror)"
 #sh -c "git push mirror $branch --force"
-sh -c "git push mirror $sha:/refs/head/$TARGET_BRANCH"
+sh -c "git push mirror $sha:/refs/heads/$TARGET_BRANCH"
 # If the push fails because the target branch is ahead than the push, Pipeline is counted as failed.
 push_status=$?
 #echo "push_status: $push_status"
