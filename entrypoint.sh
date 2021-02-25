@@ -114,12 +114,13 @@ echo "branch: l109: ${branch_uri}"
 if [ "${REPO_EVENT_TYPE}" = "push" ]
 then
    #Get the latest commit sha on the target gitlab repository
-   #base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
+   base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
    sha="$(approvedcommitsha ${SOURCE_PAT} ${GITHUB_USERNAME} ${GITHUB_REPO} ${TARGET_BRANCH})"
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
+      #AK: check if base_commitsha is older than sha before pushing
       preapproved=0
       git checkout $sha
    fi
@@ -266,7 +267,7 @@ sh -c "git config --global credential.helper cache"
 sh -c "git remote add mirror $*"
 sh -c "echo pushing to $branch branch at $(git remote get-url --push mirror)"
 #sh -c "git push mirror $branch --force"
-sh -c "git push mirror $branch"
+sh -c "git push mirror $sha:$branch"
 
 sleep $POLL_TIMEOUT
 
