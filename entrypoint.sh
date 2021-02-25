@@ -170,9 +170,9 @@ then
    
    #Comment check route
    #number of comments
-   curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length
+   curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length
    echo "PR_NUMBER ${PR_NUMBER}"
-   ncomments=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length)
+   ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length)
    echo "ncomments ${ncomments}"
    if [[ "${ncomments}" = "0" ]]
    then
@@ -186,12 +186,12 @@ then
       icomment=$(($icomment - 1))
       echo "icomment $icomment"
       #check comment for string
-      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
+      curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
       approval_comment=$?
       #if string matches check if commenter belongs to the pre-approved list
       if [ "${approval_comment}" = "0" ]
       then
-         commentauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
+         commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
          grep "$commentauthor" /tmp/github_usernames
          approval_comment=$?
       fi
@@ -207,7 +207,7 @@ then
 
    #Label check route
    #entries associated with labels
-   nlabels=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq length)
+   nlabels=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq length)
    if [[ "${nlabels}" = "0" ]]
    then
       echo "Commit author not in trusted list and no approval label. CI will exit"
@@ -218,15 +218,15 @@ then
    while [[ "${approval_label}" != "0" && "${ilabel}" -gt 0 ]]
    do
       ilabel=$(($ilabel - 1))
-      curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
+      curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
       approval_label=$?
       if [ "${approval_label}" = "0" ]
       then
-         curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelname: .label.name}" | jq ".labelname" | grep \"triggerlabel\"
+         curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelname: .label.name}" | jq ".labelname" | grep \"triggerlabel\"
 	 approval_label=$?
 	 if [ "${approval_label}" = "0" ]
 	 then
-	    labelauthor=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelauthor: .actor.login}" | jq ".labelauthor")
+	    labelauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelauthor: .actor.login}" | jq ".labelauthor")
 	    grep "$labelauthor" /tmp/github_usernames
             approval_label=$?
 	 fi
@@ -240,19 +240,19 @@ then
       exit 1
    fi
    
-   ncommits=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
+   ncommits=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
    ncommits=$(($ncommits - 1))
-   commit_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
+   commit_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
    echo "commit_date $commit_date"
    
    if [[ "${icomment}" -ge 0 ]] 
    then
-      comment_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
+      comment_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
    fi
    echo "comment_date $comment_date"
    if [[ "${ilabel}" -ge 0 ]] 
    then
-      label_date=$(curl -H "Authorization: token ${GITHUB_TOKEN}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[${ilabel}] | {created_at: .created_at}" | jq ".created_at")
+      label_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[${ilabel}] | {created_at: .created_at}" | jq ".created_at")
    fi
    echo "label_date $label_date"
 
@@ -296,7 +296,7 @@ push_status=$?
 if [[ "${push_status}" != "0" ]] 
 then
    echo "Unable to push to target repository, job will fail."
-   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"
+   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"
    exit 1
 fi
 
@@ -329,7 +329,7 @@ do
    if [ "$ci_status" = "running" ]
    then
      echo "Checking pipeline status..."
-     curl -d '{"state":"pending", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"  > /dev/null 
+     curl -d '{"state":"pending", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"  > /dev/null 
    fi
 done
 
@@ -343,18 +343,18 @@ fi
 
 if [ "$ci_status" = "success" ]
 then 
-  curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}" 
+  curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}" 
   exit 0
 elif [ "$ci_status" = "manual" ] # do not return non-triggered manual builds as a CI failure
 then 
-  curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}" 
+  curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}" 
   exit 0
 elif [ "$ci_status" = "failed" ]
 then 
-  curl -d '{"state":"failure", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}" 
+  curl -d '{"state":"failure", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}" 
   exit 1
 else # no return value, so there's no target URL either
   echo "Pipeline ended without a ci_status: https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/pipelines/${pipeline_id}"
-  curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"
+  curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"
   exit 1
 fi
