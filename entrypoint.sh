@@ -38,6 +38,7 @@ approvedcommitsha() (
     while [[ "${approved}" != "0" && "${icommit}" -lt 100 ]]
     do
        icommit=$(($icommit+1))
+       echo "approved: ${approved}"
        echo "icommit: ${icommit}"
        commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${TARGET_BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
        echo "commitauthor: ${commitauthor}"
@@ -113,7 +114,7 @@ echo "branch: l109: ${branch_uri}"
 if [ "${REPO_EVENT_TYPE}" = "push" ]
 then
    #Get the latest commit sha on the target gitlab repository
-   base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
+   #base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
    sha="$(approvedcommitsha ${GITHUB_PASSWORD} ${GITHUB_USERNAME} ${GITHUB_REPO} ${TARGET_BRANCH})"
    echo "sha: $sha"
