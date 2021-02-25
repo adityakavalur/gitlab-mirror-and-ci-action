@@ -268,6 +268,9 @@ sh -c "git remote add mirror $*"
 sh -c "echo pushing to $branch branch at $(git remote get-url --push mirror)"
 #sh -c "git push mirror $branch --force"
 sh -c "git push mirror $sha:$branch"
+# If the push fails because the target branch is ahead than the push, Pipeline is counted as failed.
+push_status=$?
+echo "push_status: $push_status"
 
 sleep $POLL_TIMEOUT
 
