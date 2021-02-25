@@ -79,7 +79,7 @@ done
 if [[ "${branch_exists}" != 0 ]]
 then
    echo "Target branch not found, CI job will exit"
-   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"
+   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${sha}"
    exit 1
 fi
 
