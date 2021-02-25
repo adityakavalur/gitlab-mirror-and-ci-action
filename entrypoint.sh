@@ -103,7 +103,7 @@ fi
 
 #Retrieve Github username of SOURCE_PAT
 GITHUB_USERNAME=$(curl -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
-
+echo "GITHUB_USERNAME: $GITHUB_USERNAME"
 
 branch="$(git symbolic-ref --short HEAD)"
 echo "branch: l107: ${branch}"
