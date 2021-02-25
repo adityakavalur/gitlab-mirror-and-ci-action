@@ -23,7 +23,7 @@ urlencode() (
 #Approved commit sha
 approvedcommitsha() (
     approved=1
-    GITHUB_PASSWORD=$1
+    SOURCE_PAT=$1
     GITHUB_USERNAME=$2
     GITHUB_REPO=$3
     TARGET_BRANCH=$4
@@ -40,16 +40,16 @@ approvedcommitsha() (
        icommit=$(($icommit+1))
        echo "approved: ${approved}"
        echo "icommit: ${icommit}"
-       commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${TARGET_BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
+       commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${TARGET_BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
        echo "commitauthor: ${commitauthor}"
        if [[ $commitauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
-       sha=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${TARGET_BRANCH}&per_page=100" | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-       ncomments=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq length)
+       sha=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${TARGET_BRANCH}&per_page=100" | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+       ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq length)
        icomment=${ncomments}
        while [[ "${approved}" != "0" && "${icomment}" -gt 0 ]]
        do
           icomment=$(($icomment - 1))
-          commentauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq ".[$icomment] | {commentauthor: .user.login}" | jq ".commentauthor")
+          commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq ".[$icomment] | {commentauthor: .user.login}" | jq ".commentauthor")
 	  if [[ $commentauthor == \"$GITHUB_USERNAME\" ]]; then approved=0; fi
        done
     done
@@ -102,7 +102,7 @@ fi
 
 
 #Retrieve Github username of SOURCE_PAT
-GITHUB_USERNAME=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
+GITHUB_USERNAME=$(curl -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
 
 
 branch="$(git symbolic-ref --short HEAD)"
@@ -116,7 +116,7 @@ then
    #Get the latest commit sha on the target gitlab repository
    #base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${TARGET_BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
-   sha="$(approvedcommitsha ${GITHUB_PASSWORD} ${GITHUB_USERNAME} ${GITHUB_REPO} ${TARGET_BRANCH})"
+   sha="$(approvedcommitsha ${SOURCE_PAT} ${GITHUB_USERNAME} ${GITHUB_REPO} ${TARGET_BRANCH})"
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
