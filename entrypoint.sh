@@ -105,6 +105,23 @@ fi
 GITHUB_USERNAME=$(curl -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
 echo "GITHUB_USERNAME: $GITHUB_USERNAME"
 
+#Check if target branch exists
+nbranches=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
+branch_exists=1
+ibranch=-1
+while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
+do
+   ibranch=$(($ibranch+1))
+   temp_branch=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+   if [[ "${temp_branch}" == "${TARGET_BRANCH}" ]]; then branch_exists=0; fi
+done
+if [[ "${branch_exists}" != 0 ]]
+then
+   echo "Target branch not found, CI job will exit"
+   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
+   exit 1
+fi
+
 branch="$(git symbolic-ref --short HEAD)"
 echo "branch: l107: ${branch}"
 branch_uri="$(urlencode ${branch})"
