@@ -106,13 +106,13 @@ GITHUB_USERNAME=$(curl -H "Authorization: token ${SOURCE_PAT}" -H "Accept: appli
 echo "GITHUB_USERNAME: $GITHUB_USERNAME"
 
 #Check if target branch exists
-nbranches=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
+nbranches=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
 branch_exists=1
 ibranch=-1
 while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
 do
    ibranch=$(($ibranch+1))
-   temp_branch=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+   temp_branch=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
    if [[ "${temp_branch}" == "${TARGET_BRANCH}" ]]; then branch_exists=0; fi
 done
 if [[ "${branch_exists}" != 0 ]]
