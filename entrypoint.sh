@@ -64,13 +64,34 @@ POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
 echo "CI job triggered by event- $REPO_EVENT_TYPE"
 
+#Identify required variables and add checks to see if they are empty
+
+#Check if target branch exists
+nbranches=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
+branch_exists=1
+ibranch=-1
+while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
+do
+   ibranch=$(($ibranch+1))
+   temp_branch=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+   if [[ "${temp_branch}" == "${TARGET_BRANCH}" ]]; then branch_exists=0; fi
+done
+if [[ "${branch_exists}" != 0 ]]
+then
+   echo "Target branch not found, CI job will exit"
+   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
+   exit 1
+fi
+
+
 #Allowed events
+#There is no need to checkout branches here, it is now done on a specific SHA
 if [ "${REPO_EVENT_TYPE}" = "pull_request" ]
 then
    git checkout "${GITHUB_HEAD_REF}"
 elif [  "${REPO_EVENT_TYPE}" = "push"  ]
 then
-   git checkout "${GITHUB_REF:11}"
+   git checkout "${TARGET_BRANCH}"
 elif [ "${REPO_EVENT_TYPE}" = "pull_request_target" ]
 then
    echo "You are running pull request target, make sure your settings are secure, secrets are accessible."
@@ -105,22 +126,6 @@ fi
 GITHUB_USERNAME=$(curl -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
 echo "GITHUB_USERNAME: $GITHUB_USERNAME"
 
-#Check if target branch exists
-nbranches=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
-branch_exists=1
-ibranch=-1
-while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
-do
-   ibranch=$(($ibranch+1))
-   temp_branch=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-   if [[ "${temp_branch}" == "${TARGET_BRANCH}" ]]; then branch_exists=0; fi
-done
-if [[ "${branch_exists}" != 0 ]]
-then
-   echo "Target branch not found, CI job will exit"
-   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
-   exit 1
-fi
 
 branch="$(git symbolic-ref --short HEAD)"
 echo "branch: l107: ${branch}"
@@ -282,9 +287,9 @@ sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
 sh -c "git config --global credential.helper cache"
 sh -c "git remote add mirror $*"
-sh -c "echo pushing to $branch branch at $(git remote get-url --push mirror)"
+sh -c "echo pushing to $TARGET_BRANCH branch at $(git remote get-url --push mirror)"
 #sh -c "git push mirror $branch --force"
-sh -c "git push mirror $sha:$branch"
+sh -c "git push mirror $sha:$TARGET_BRANCH"
 # If the push fails because the target branch is ahead than the push, Pipeline is counted as failed.
 push_status=$?
 #echo "push_status: $push_status"
@@ -297,17 +302,17 @@ fi
 
 sleep $POLL_TIMEOUT
 
-pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${branch_uri}" | jq '.last_pipeline.id')
+pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${TARGET_BRANCH}" | jq '.last_pipeline.id')
 
 if [ "${pipeline_id}" = "null" ]
 then
     echo "pipeline_id is null, so we can't continue."
-    echo "Response from https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${branch_uri} was:"
-    echo $(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${branch_uri}")
+    echo "Response from https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${TARGET_BRANCH} was:"
+    echo $(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${TARGET_BRANCH}")
     exit 1
 fi
 
-echo "Triggered CI for branch ${branch}"
+echo "Triggered CI for branch ${TARGET_BRANCH}"
 echo "Working with pipeline id #${pipeline_id}"
 echo "Poll timeout set to ${POLL_TIMEOUT}"
 
