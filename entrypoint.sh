@@ -125,7 +125,7 @@ then
    fi
 else
    echo "PR_NUMBER $PR_NUMBER"
-   commitauthor=$(curl -H "Authorization: token ${GITHUB_PASSWORD}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER} | jq ".user.login")
+   commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER} | jq ".user.login")
 fi
 
 #echo "commitauthor ${commitauthor}"
