@@ -271,7 +271,8 @@ sh -c "git push mirror $sha:$branch"
 # If the push fails because the target branch is ahead than the push, Pipeline is counted as failed.
 push_status=$?
 #echo "push_status: $push_status"
-if [[ "${push_status}" != "0" ]] then
+if [[ "${push_status}" != "0" ]] 
+then
    echo "Unable to push to target repository, job will fail."
    curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${GITHUB_TOKEN}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}"
    exit 1
