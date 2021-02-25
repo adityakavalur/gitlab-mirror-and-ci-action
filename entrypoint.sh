@@ -38,7 +38,7 @@ approvedcommitsha() (
     while [[ "${approved}" != "0" && "${icommit}" -lt 100 ]]
     do
        icommit=$(($icommit+1))
-       echo "approved: ${approved}"
+       #echo "approved: ${approved}"
        #echo "icommit: ${icommit}"
        commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${TARGET_BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
        #echo "commitauthor: ${commitauthor}"
