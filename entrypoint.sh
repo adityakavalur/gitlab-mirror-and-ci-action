@@ -26,11 +26,11 @@ approvedcommitsha() (
     SOURCE_PAT=$1
     GITHUB_USERNAME=$2
     GITHUB_REPO=$3
-    SOURCE_BRANCH=$4
+    BRANCH=$4
     
     #echo "GITHUB_USERNAME: $GITHUB_USERNAME" 
     #echo "GITHUB_REPO: $GITHUB_REPO"
-    #echo "SOURCE_BRANCH: $SOURCE_BRANCH"
+    #echo "BRANCH: $BRANCH"
     
     
     #API returns latest commit first
@@ -40,10 +40,10 @@ approvedcommitsha() (
        icommit=$(($icommit+1))
        #echo "approved: ${approved}"
        #echo "icommit: ${icommit}"
-       commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${SOURCE_BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
+       commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
        #echo "commitauthor: ${commitauthor}"
        if [[ $commitauthor == $GITHUB_USERNAME ]]; then approved=0; fi
-       sha=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${SOURCE_BRANCH}&per_page=100" | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+       sha=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
        ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq length)
        icomment=${ncomments}
        while [[ "${approved}" != "0" && "${icomment}" -gt 0 ]]
@@ -74,7 +74,7 @@ while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
 do
    ibranch=$(($ibranch+1))
    temp_branch=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-   if [[ "${temp_branch}" == "${SOURCE_BRANCH}" ]]; then branch_exists=0; fi
+   if [[ "${temp_branch}" == "${BRANCH}" ]]; then branch_exists=0; fi
 done
 if [[ "${branch_exists}" != 0 ]]
 then
@@ -91,7 +91,7 @@ then
    git checkout "${GITHUB_HEAD_REF}"
 elif [  "${REPO_EVENT_TYPE}" = "push"  ]
 then
-   git checkout "${SOURCE_BRANCH}"
+   git checkout "${BRANCH}"
 elif [ "${REPO_EVENT_TYPE}" = "pull_request_target" ]
 then
    echo "You are running pull request target, make sure your settings are secure, secrets are accessible."
@@ -136,9 +136,9 @@ echo "branch: l109: ${branch_uri}"
 if [ "${REPO_EVENT_TYPE}" = "push" ]
 then
    #Get the latest commit sha on the target gitlab repository
-   base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${SOURCE_BRANCH}" --silent | jq ".[0] | {id: .id}")
+   base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
-   sha="$(approvedcommitsha ${SOURCE_PAT} ${GITHUB_USERNAME} ${GITHUB_REPO} ${SOURCE_BRANCH})"
+   sha="$(approvedcommitsha ${SOURCE_PAT} ${GITHUB_USERNAME} ${GITHUB_REPO} ${BRANCH})"
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
@@ -287,9 +287,9 @@ sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
 sh -c "git config --global credential.helper cache"
 sh -c "git remote add mirror $*"
-sh -c "echo pushing to $SOURCE_BRANCH branch at $(git remote get-url --push mirror)"
+sh -c "echo pushing to $BRANCH branch at $(git remote get-url --push mirror)"
 #sh -c "git push mirror $branch --force"
-sh -c "git push mirror $sha:refs/heads/$SOURCE_BRANCH"
+sh -c "git push mirror $sha:refs/heads/$BRANCH"
 # If the push fails because the target branch is ahead than the push, Pipeline is counted as failed.
 push_status=$?
 #echo "push_status: $push_status"
@@ -302,17 +302,17 @@ fi
 
 sleep $POLL_TIMEOUT
 
-pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${SOURCE_BRANCH}" | jq '.last_pipeline.id')
+pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${BRANCH}" | jq '.last_pipeline.id')
 
 if [ "${pipeline_id}" = "null" ]
 then
     echo "pipeline_id is null, so we can't continue."
-    echo "Response from https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${SOURCE_BRANCH} was:"
-    echo $(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${SOURCE_BRANCH}")
+    echo "Response from https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${BRANCH} was:"
+    echo $(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${BRANCH}")
     exit 1
 fi
 
-echo "Triggered CI for branch ${SOURCE_BRANCH}"
+echo "Triggered CI for branch ${BRANCH}"
 echo "Working with pipeline id #${pipeline_id}"
 echo "Poll timeout set to ${POLL_TIMEOUT}"
 
@@ -338,7 +338,7 @@ echo "Pipeline finished with status ${ci_status}"
 #Delete remote branch if PR
 if [[ "${REPO_EVENT_TYPE}" = "pull_request" || "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
 then
-   sh -c "git push mirror --delete ${SOURCE_BRANCH}"
+   sh -c "git push mirror --delete ${BRANCH}"
 fi
 
 if [ "$ci_status" = "success" ]
