@@ -166,7 +166,7 @@ then
    fi
 fi
 
-if [[ -z ${PR_NUMBER} ]]
+if [[ ! -z ${PR_NUMBER} ]]
 then
    # Cycle through all PRs 
    for ipr in {1..${npr}}
@@ -188,7 +188,7 @@ fi
 
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
-   if [[ -z ${approvedtime} ]]
+   if [[ ! -z ${approvedtime} ]]
    then
       echo "No approval associated with the target PR(s). CI job will exit"
       exit 1
