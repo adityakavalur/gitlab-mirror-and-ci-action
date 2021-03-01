@@ -169,11 +169,12 @@ fi
 if [[ $(printenv PR_NUMBER | wc -c) = 0 ]]
 then
    # Cycle through all PRs 
-   for ipr in `sh -c "eval echo {1..$npr}"`
+   ipr=-1
+   while [[ "$ipr" -lt "$(($npr-1))" ]]
    do
+      ipr=$(($ipr+1))
       echo "line 174: $ipr"
-      localpr=$(($ipr-1))
-      target_PR_NUMBER=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq ".[${localpr}] | {PR_NUMBER : .number}" | jq .PR_NUMBER)
+      target_PR_NUMBER=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq ".[${ipr}] | {PR_NUMBER : .number}" | jq .PR_NUMBER)
       echo "${target_PR_NUMBER}"
       #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
       #This function only returns PRs where the latest commit is approved. 
