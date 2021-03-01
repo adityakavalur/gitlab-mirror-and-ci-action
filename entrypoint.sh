@@ -201,6 +201,7 @@ if [ "${REPO_EVENT_TYPE}" = "internal_pr" ]
 then
    BRANCH=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
    git checkout "${BRANCH}"
+   sha=$(git rev-parse HEAD)
 elif [  "${REPO_EVENT_TYPE}" = "push"  ]
 then
    git checkout "${BRANCH}"
@@ -217,6 +218,7 @@ then
    git checkout "${GITHUB_HEAD_REF}"
    BRANCH=external-pr-${PR_NUMBER}
    git branch -m ${BRANCH}
+   sha=$(git rev-parse HEAD)
 fi
 
 echo "list all branches: $(git branch -a)"
@@ -315,6 +317,7 @@ then
    sh -c "git push mirror --delete ${BRANCH}"
 fi
 
+#Checkout how this works with fork-prs
 if [ "$ci_status" = "success" ]
 then 
   curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPO}/statuses/${sha}" 
