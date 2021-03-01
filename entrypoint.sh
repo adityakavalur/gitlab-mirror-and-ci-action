@@ -174,7 +174,7 @@ then
       target_PR_NUMBER=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq ".[$ipr] | {PR_NUMBER : .number}" | jq .PR_NUMBER)
       #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
       #This function only returns PRs where the latest commit is approved. 
-      temp_approvaltime="$(prapproval ${target_PR_NUMBER})"
+      temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
       if [[ ${temp_approvaltime} > ${approvedtime} ]] 
       then 
          approvedtime=${temp_approvaltime}
@@ -183,7 +183,7 @@ then
    done
 else
    # only check the specified PR.
-   approvedtime="$(prapproval ${PR_NUMBER})"
+   approvedtime="$(prapproval ${PR_NUMBER} ${GITHUB_USERNAME})"
 fi
 
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
@@ -215,7 +215,8 @@ then
    GITHUB_HEAD_REF=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref)
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
-   git branch -m external-pr-${PR_NUMBER}
+   BRANCH=external-pr-${PR_NUMBER}
+   git branch -m ${BRANCH}
 fi
 
 echo "list all branches: $(git branch -a)"
