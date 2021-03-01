@@ -164,23 +164,24 @@ then
    # Cycle through all PRs 
    for ipr in {1..${npr}}
    do
-      target_PR_NUMBER=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq ".[$ipr] | {PR_NUMBER : .number}" | jq .PR_NUMBER)
+      target_PR_NUMBER=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq ".[$ipr] | {PR_NUMBER : .number}" | jq .PR_NUMBER)
       #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
-      approvaltime="$(prapproval ${target_PR_NUMBER})"
-      if [[ ${approvaltime} > ${approvedtime} ]] 
+      #This function only returns PRs where the latest commit is approved. 
+      temp_approvaltime="$(prapproval ${target_PR_NUMBER})"
+      if [[ ${temp_approvaltime} > ${approvedtime} ]] 
       then 
-         approvedtime=${approvaltime}
+         approvedtime=${temp_approvaltime}
 	 PR_NUMBER=${target_PR_NUMBER}
       fi
    done
 else
    # only check the specified PR.
-   approvaltime="$(prapproval ${PR_NUMBER})"
+   approvedtime="$(prapproval ${PR_NUMBER})"
 fi
 
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
-   if [[ -z ${approvaltime} ]]
+   if [[ -z ${approvedtime} ]]
    then
       echo "No approval associated with the target PR(s). CI job will exit"
       exit 1
@@ -191,7 +192,8 @@ fi
 #There is no need to checkout branches here, it is now done on a specific SHA
 if [ "${REPO_EVENT_TYPE}" = "internal_pr" ]
 then
-   git checkout "${GITHUB_HEAD_REF}"
+   BRANCH=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+   git checkout "${BRANCH}"
 elif [  "${REPO_EVENT_TYPE}" = "push"  ]
 then
    git checkout "${BRANCH}"
@@ -207,9 +209,6 @@ then
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
    git branch -m external-pr-${PR_NUMBER}
-else
-   echo "Only PR and Push testing are currently supported. CI will exit"
-   exit 1
 fi
 
 echo "list all branches: $(git branch -a)"
@@ -245,146 +244,134 @@ then
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
-      #AK: check if base_commitsha is older than sha before pushing
+      #TODO: check if base_commitsha is older than sha before pushing
       preapproved=0
       git checkout $sha
    fi
-else
-   echo "PR_NUMBER $PR_NUMBER"
-   commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER} | jq ".user.login")
 fi
 
-#echo "commitauthor ${commitauthor}"
-#echo "github pre-approved usernames"
-#cat /tmp/github_usernames
-
-#grep "$commitauthor" /tmp/github_usernames
-#preapproved=$?
-#echo "preapproved ${preapproved}"
 if [[ "${preapproved}" != "0" && "${REPO_EVENT_TYPE}" = "push" ]]
 then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
    exit 1
 fi
 
-#check if the user has commented with the triggerstring
-if [[ "${preapproved}" != "0" ]] && [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
-then
-   
-   #Comment check route
-   #number of comments
-   curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length
-   echo "PR_NUMBER ${PR_NUMBER}"
-   ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length)
-   echo "ncomments ${ncomments}"
-   if [[ "${ncomments}" = "0" ]]
-   then
-      echo "Commit author not in trusted list and no approval comment. CI will exit"
-      exit 1 
-   fi
-   approval_comment=1
-   icomment=${ncomments}
-   while [[ "${approval_comment}" != "0" && "${icomment}" -gt 0 ]]
-   do
-      icomment=$(($icomment - 1))
-      echo "icomment $icomment"
-      #check comment for string
-      curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
-      approval_comment=$?
-      #if string matches check if commenter belongs to the pre-approved list
-      if [ "${approval_comment}" = "0" ]
-      then
-         commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
-         grep "$commentauthor" /tmp/github_usernames
-         approval_comment=$?
-      fi
-   done
-   
+##check if the user has commented with the triggerstring
+#if [[ "${preapproved}" != "0" ]] && [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
+#then
+#   
+#   #Comment check route
+#   #number of comments
+#   curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length
+#   echo "PR_NUMBER ${PR_NUMBER}"
+#   ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length)
+#   echo "ncomments ${ncomments}"
+#   if [[ "${ncomments}" = "0" ]]
+#   then
+#      echo "Commit author not in trusted list and no approval comment. CI will exit"
+#      exit 1 
+#   fi
+#   approval_comment=1
+#   icomment=${ncomments}
+#   while [[ "${approval_comment}" != "0" && "${icomment}" -gt 0 ]]
+#   do
+#      icomment=$(($icomment - 1))
+#      echo "icomment $icomment"
+#      #check comment for string
+#      curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
+#      approval_comment=$?
+#      #if string matches check if commenter belongs to the pre-approved list
+#      if [ "${approval_comment}" = "0" ]
+#      then
+#         commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
+#         grep "$commentauthor" /tmp/github_usernames
+#         approval_comment=$?
+#      fi
+#   done
+#   
+#
+#   #found the latest approval comment, run CI if commit is from earlier time than comment creation
+#   if [ "${approval_comment}" != "0" ]
+#   then
+#      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo need to comment to run CI. CI will exit"
+#      exit 1
+#   fi
+#
+#   #Label check route
+#   #entries associated with labels
+#   nlabels=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq length)
+#   if [[ "${nlabels}" = "0" ]]
+#   then
+#      echo "Commit author not in trusted list and no approval label. CI will exit"
+#      exit 1 
+#   fi
+#   approval_label=1
+#   ilabel=${nlabels}
+#   while [[ "${approval_label}" != "0" && "${ilabel}" -gt 0 ]]
+#   do
+#      ilabel=$(($ilabel - 1))
+#      curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
+#      approval_label=$?
+#      if [ "${approval_label}" = "0" ]
+#      then
+#         curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelname: .label.name}" | jq ".labelname" | grep \"triggerlabel\"
+#	 approval_label=$?
+#	 if [ "${approval_label}" = "0" ]
+#	 then
+#	    labelauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelauthor: .actor.login}" | jq ".labelauthor")
+#	    grep "$labelauthor" /tmp/github_usernames
+#            approval_label=$?
+#	 fi
+#      fi
+#   done
+#   
+#   #found the latest approval comment, run CI if commit is from earlier time than comment creation
+#   if [ "${approval_label}" != "0" ]
+#   then
+#      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo needs to add label to run CI. CI will exit"
+#      exit 1
+#   fi
+#   
+#   ncommits=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
+#   ncommits=$(($ncommits - 1))
+#   commit_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
+#   echo "commit_date $commit_date"
+#   
+#   if [[ "${icomment}" -ge 0 ]] 
+#   then
+#      comment_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
+#   fi
+#   echo "comment_date $comment_date"
+#   if [[ "${ilabel}" -ge 0 ]] 
+#   then
+#      label_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[${ilabel}] | {created_at: .created_at}" | jq ".created_at")
+#   fi
+#   echo "label_date $label_date"
+#   # Dont run CI if comment date is older than commit date
+#   if [[ "$comment_date" < "$commit_date" && "${icomment}" -ge 0 ]]
+#   then
+#      echo "Each new commit requires a new comment to run CI. CI will exit"
+#      exit 1 
+#   fi
+#   # Dont run CI if label add date is older than commit date
+#   if [[ "${label_date}" < "${commit_date}" && "${ilabel}" -ge 0 ]]
+#   then
+#      echo "Each new commit requires (re)adding label to run CI. CI will exit"
+#      exit 1 
+#   fi
+#fi
 
-   #found the latest approval comment, run CI if commit is from earlier time than comment creation
-   if [ "${approval_comment}" != "0" ]
-   then
-      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo need to comment to run CI. CI will exit"
-      exit 1
-   fi
-
-   #Label check route
-   #entries associated with labels
-   nlabels=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq length)
-   if [[ "${nlabels}" = "0" ]]
-   then
-      echo "Commit author not in trusted list and no approval label. CI will exit"
-      exit 1 
-   fi
-   approval_label=1
-   ilabel=${nlabels}
-   while [[ "${approval_label}" != "0" && "${ilabel}" -gt 0 ]]
-   do
-      ilabel=$(($ilabel - 1))
-      curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {event: .event}" | jq ".event" | grep \"labeled\"
-      approval_label=$?
-      if [ "${approval_label}" = "0" ]
-      then
-         curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelname: .label.name}" | jq ".labelname" | grep \"triggerlabel\"
-	 approval_label=$?
-	 if [ "${approval_label}" = "0" ]
-	 then
-	    labelauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[$ilabel] | {labelauthor: .actor.login}" | jq ".labelauthor")
-	    grep "$labelauthor" /tmp/github_usernames
-            approval_label=$?
-	 fi
-      fi
-   done
-   
-   #found the latest approval comment, run CI if commit is from earlier time than comment creation
-   if [ "${approval_label}" != "0" ]
-   then
-      echo "Commit author ${commitauthor} not associated with repository, owner(s) of repo needs to add label to run CI. CI will exit"
-      exit 1
-   fi
-   
-   ncommits=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
-   ncommits=$(($ncommits - 1))
-   commit_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
-   echo "commit_date $commit_date"
-   
-   if [[ "${icomment}" -ge 0 ]] 
-   then
-      comment_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
-   fi
-   echo "comment_date $comment_date"
-   if [[ "${ilabel}" -ge 0 ]] 
-   then
-      label_date=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.mockingbird-preview" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/timeline | jq ".[${ilabel}] | {created_at: .created_at}" | jq ".created_at")
-   fi
-   echo "label_date $label_date"
-
-   
-   # Dont run CI if comment date is older than commit date
-   if [[ "$comment_date" < "$commit_date" && "${icomment}" -ge 0 ]]
-   then
-      echo "Each new commit requires a new comment to run CI. CI will exit"
-      exit 1 
-   fi
-   # Dont run CI if label add date is older than commit date
-   if [[ "${label_date}" < "${commit_date}" && "${ilabel}" -ge 0 ]]
-   then
-      echo "Each new commit requires (re)adding label to run CI. CI will exit"
-      exit 1 
-   fi
-fi
-
-#Assesing VM security
-echo "all running pid"
-ps -ef
-echo "current dir"
-pwd
-echo "list files"
-ls -la 
-echo "add file for persistence"
-touch persist
-echo "check if it exists"
-ls -l persist
+##Assesing VM env
+#echo "all running pid"
+#ps -ef
+#echo "current dir"
+#pwd
+#echo "list files"
+#ls -la 
+#echo "add file for persistence"
+#touch persist
+#echo "check if it exists"
+#ls -l persist
 
 sh -c "git config --global credential.username $GITLAB_USERNAME"
 sh -c "git config --global core.askPass /cred-helper.sh"
