@@ -58,49 +58,152 @@ approvedcommitsha() (
 )
 ##################################################################
 
+##################################################################
+branchexists() (
+    SOURCE_PAT=$1
+    GITHUB_REPO=$2
+    BRANCH=$3
+    #Check if branch for which push/pr testing is requested, exists
+    nbranches=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
+    branch_exists=1
+    ibranch=-1
+    while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
+    do
+       ibranch=$(($ibranch+1))
+       temp_branch=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
+       if [[ "${temp_branch}" == "${BRANCH}" ]]; then branch_exists=0; fi
+    done
+    printf "${branch_exists}"
+    if [[ "${branch_exists}" != 0 ]]
+    then
+       #This error needs to go to MIRROR_REPO and not SOURCE_REPO
+       echo "Target branch not found, CI job will exit"
+       curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPO}/statuses/${sha}"
+       exit 1
+    fi
+)
+##################################################################
+
+##################################################################
+prapproval() (
+    PR_NUMBER=$1
+
+    approved=1
+    
+    #Find the latest commit date and author
+    ncommits=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
+    ncommits=$(($ncommits - 1))
+    commitdate=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
+    commitauthor=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[ncommits] | {commit_author: .commit.author.name}" | jq .commit_author)
+
+    if [[ $commitauthor == $GITHUB_USERNAME ]]; then approved=0; fi
+    
+    #If commit author is not approved, check comments
+    if [[ ${approved} != "0" ]]
+    then
+       ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq length)
+       approval_comment=1
+       icomment=${ncomments}
+       while [[ "${approval_comment}" != "0" && "${icomment}" -gt 0 ]]
+       do
+          icomment=$(($icomment - 1))
+          #check comment for string
+          curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {body: .body}" | grep "triggerstring"
+          approval_comment=$?
+	  commentdate=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[${icomment}] | {created_at: .created_at}" | jq ".created_at")
+          #if string matches check if commenter belongs to the pre-approved list and the comment is newer than the latest commit
+          if [ "${approval_comment}" = "0" && ${commentdate} > ${commitdate} ]
+          then
+             commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
+	     if [[ $commentauthor == $GITHUB_USERNAME ]]; then approved=0; fi
+             approval_comment=$?
+          fi
+       done
+    fi
+
+)
+##################################################################
+
 preapproved=1
 DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
 echo "CI job triggered by event- $REPO_EVENT_TYPE"
-
-#Identify required variables and add checks to see if they are empty
-
-#Check if target branch exists
-nbranches=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
-branch_exists=1
-ibranch=-1
-while [[ "${branch_exists}" != "0" && "${ibranch}" -lt "${nbranches}" ]]
-do
-   ibranch=$(($ibranch+1))
-   temp_branch=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq ".[$ibranch] | {branch: .name}" | jq .branch | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
-   if [[ "${temp_branch}" == "${BRANCH}" ]]; then branch_exists=0; fi
-done
-if [[ "${branch_exists}" != 0 ]]
+#Check if REPO_EVENT_TYPE specified above is supported
+if [[ ${REPO_EVENT_TYPE} != "push" && ${REPO_EVENT_TYPE} != "internal_pr" && ${REPO_EVENT_TYPE} != "fork_pr"  ]]
 then
-   echo "Target branch not found, CI job will exit"
-   curl -d '{"state":"failure", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPO}/statuses/${sha}"
+   echo "Only PR and Push testing are currently supported. CI will exit"
    exit 1
 fi
 
+#Identify required variables for each type of even and add checks to see if they are empty
+#In push there is no target branch
+if [[ "${REPO_EVENT_TYPE}" == "push" ]]; then TARGET_BRANCH=${BRANCH}; fi
+branchfound="$(branchexists ${SOURCE_PAT} ${GITHUB_REPO} ${TARGET_BRANCH})"
+
+if [[ ${branchfound} != "0" ]]
+then
+   echo "Branch ${TARGET_BRANCH} not found in the repo, CI job will exit"
+   exit 1
+fi
+
+#If PR Number is specified use that or else find the latest acceptable PR
+if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
+then
+   #number of open pr's
+   npr=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq length)
+   if [[ ${npr} == "0" ]]
+   then
+      echo "No open PRs, CI will exit."
+      exit 1
+   fi
+fi
+
+if [[ -z ${PR_NUMBER} ]]
+then
+   # Cycle through all PRs 
+   for ipr in {1..${npr}}
+   do
+      target_PR_NUMBER=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls | jq ".[$ipr] | {PR_NUMBER : .number}" | jq .PR_NUMBER)
+      #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
+      approvaltime="$(prapproval ${target_PR_NUMBER})"
+      if [[ ${approvaltime} > ${approvedtime} ]] 
+      then 
+         approvedtime=${approvaltime}
+	 PR_NUMBER=${target_PR_NUMBER}
+      fi
+   done
+else
+   # only check the specified PR.
+   approvaltime="$(prapproval ${PR_NUMBER})"
+fi
+
+if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
+then
+   if [[ -z ${approvaltime} ]]
+   then
+      echo "No approval associated with the target PR(s). CI job will exit"
+      exit 1
+   fi
+fi
 
 #Allowed events
 #There is no need to checkout branches here, it is now done on a specific SHA
-if [ "${REPO_EVENT_TYPE}" = "pull_request" ]
+if [ "${REPO_EVENT_TYPE}" = "internal_pr" ]
 then
    git checkout "${GITHUB_HEAD_REF}"
 elif [  "${REPO_EVENT_TYPE}" = "push"  ]
 then
    git checkout "${BRANCH}"
-elif [ "${REPO_EVENT_TYPE}" = "pull_request_target" ]
+elif [ "${REPO_EVENT_TYPE}" = "fork_pr" ]
 then
    echo "You are running pull request target, make sure your settings are secure, secrets are accessible."
    #Manual change of git
    rm -rf * .*
-   fork_repo=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.repo.clone_url)
+   fork_repo=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.repo.clone_url)
    fork_repo="${fork_repo:1:${#fork_repo}-2}"
    git clone --quiet ${fork_repo} .
-   GITHUB_HEAD_REF=$(curl -H --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref)
+   GITHUB_HEAD_REF=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref)
    GITHUB_HEAD_REF="${GITHUB_HEAD_REF:1:${#GITHUB_HEAD_REF}-2}"
    git checkout "${GITHUB_HEAD_REF}"
    git branch -m external-pr-${PR_NUMBER}
@@ -115,7 +218,7 @@ echo "list github_base_ref: $GITHUB_BASE_REF"
 echo "list github_ref: $GITHUB_REF"
 echo "list github repo: $GITHUB_REPOSITORY"
 
-if [[ "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
+if [[ "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
    echo "list fork repo (if pr from fork): ${fork_repo}"
 fi
@@ -164,8 +267,8 @@ then
    exit 1
 fi
 
-#check if someone from the pre-approved user list has commented with the triggerstring
-if [[ "${preapproved}" != "0" ]] && [[ "${REPO_EVENT_TYPE}" = "pull_request" || "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
+#check if the user has commented with the triggerstring
+if [[ "${preapproved}" != "0" ]] && [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
    
    #Comment check route
