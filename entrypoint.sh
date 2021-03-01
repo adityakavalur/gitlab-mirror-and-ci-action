@@ -169,7 +169,7 @@ fi
 if [[ $(printenv PR_NUMBER | wc -c) = 0 ]]
 then
    # Cycle through all PRs 
-   for ipr in $(eval echo {1..$npr})
+   for ipr in `eval echo {1..$npr}`
    do
       echo "line 174: $ipr"
       localpr=$(($ipr-1))
