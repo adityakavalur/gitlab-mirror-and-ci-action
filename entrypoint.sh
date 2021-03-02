@@ -93,6 +93,8 @@ prapproval() (
     if [[ $REPO_EVENT_TYPE == "internal_pr" ]]
     then
        if [[ $base_repo != $head_repo ]]; then return 1; fi
+    else
+       if [[ $base_repo == $head_repo ]]; then return 1; fi
     fi
     
     #Find the latest commit date and author
