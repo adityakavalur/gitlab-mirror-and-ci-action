@@ -180,6 +180,7 @@ then
       #This function only returns PRs where the latest commit is approved. 
       temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
       echo "line 178: ${temp_approvaltime}"
+      echo "line 179: $(printenv approvedtime | wc -c)"
       if [[ $(printenv approvedtime | wc -c) = 0 ]]
       then
          approvedtime=${temp_approvaltime}
