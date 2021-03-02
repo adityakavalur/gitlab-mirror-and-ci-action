@@ -26,20 +26,13 @@ approvedcommitsha() (
     GITHUB_USERNAME=$1
     BRANCH=$2
     
-    #echo "GITHUB_USERNAME: $GITHUB_USERNAME" 
-    #echo "GITHUB_REPO: $GITHUB_REPO"
-    #echo "BRANCH: $BRANCH"
-    
     
     #API returns latest commit first
     icommit=-1
     while [[ "${approved}" != "0" && "${icommit}" -lt 100 ]]
     do
        icommit=$(($icommit+1))
-       #echo "approved: ${approved}"
-       #echo "icommit: ${icommit}"
        commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .author.login}" | jq ".commitauthor")
-       #echo "commitauthor: ${commitauthor}"
        if [[ $commitauthor == $GITHUB_USERNAME ]]; then approved=0; fi
        sha=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
        ncomments=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq length)
@@ -187,9 +180,6 @@ then
       #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
       #This function only returns PRs where the latest commit is approved. 
       export temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
-      echo "line 178: ${temp_approvaltime}"
-      echo "line 179: $(printenv approvedtime | wc -c)"
-      echo "line 180: $(printenv temp_approvaltime | wc -c)"
       if [[ ! -z ${temp_approvaltime} ]] 
       then
          if [[ $(printenv approvedtime | wc -c) = 0 ]]
@@ -219,7 +209,6 @@ then
    fi
 fi
 
-echo "line 210: ${PR_NUMBER}"
 
 #Allowed events
 #There is no need to checkout branches here, it is now done on a specific SHA
@@ -247,11 +236,6 @@ then
    sha=$(git rev-parse HEAD)
 fi
 
-echo "list all branches: $(git branch -a)"
-echo "list github_head_ref: $GITHUB_HEAD_REF"
-echo "list github_base_ref: $GITHUB_BASE_REF"
-echo "list github_ref: $GITHUB_REF"
-echo "list github repo: $GITHUB_REPOSITORY"
 
 if [[ "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
@@ -260,7 +244,6 @@ fi
 
 
 branch_uri="$(urlencode ${BRANCH})"
-echo "branch: l109: ${branch_uri}"
 
 #Approval section
 if [ "${REPO_EVENT_TYPE}" = "push" ]
@@ -292,7 +275,6 @@ sh -c "echo pushing to $BRANCH branch at $(git remote get-url --push mirror)"
 sh -c "git push mirror $sha:refs/heads/$BRANCH"
 # If the push fails because the target branch is ahead than the push, Pipeline is counted as failed.
 push_status=$?
-#echo "push_status: $push_status"
 if [[ "${push_status}" != "0" ]] 
 then
    echo "Unable to push to target repository, job will fail."
@@ -302,6 +284,7 @@ fi
 
 sleep $POLL_TIMEOUT
 
+#TODO: see if there is better way than taking the last pipeline
 pipeline_id=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" --silent "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits/${BRANCH}" | jq '.last_pipeline.id')
 
 if [ "${pipeline_id}" = "null" ]
