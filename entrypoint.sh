@@ -178,23 +178,23 @@ then
       echo "${target_PR_NUMBER}"
       #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
       #This function only returns PRs where the latest commit is approved. 
-      temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
+      export temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
       echo "line 178: ${temp_approvaltime}"
       echo "line 179: $(printenv approvedtime | wc -c)"
       echo "line 180: $(printenv temp_approvaltime | wc -c)"
       if [[ $(printenv approvedtime | wc -c) = 0 ]]
       then
-         approvedtime=${temp_approvaltime}
+         export approvedtime=${temp_approvaltime}
 	 PR_NUMBER=${target_PR_NUMBER}         
       elif [[ ${temp_approvaltime} > ${approvedtime} &&  ]] 
       then 
-         approvedtime=${temp_approvaltime}
+         export approvedtime=${temp_approvaltime}
 	 PR_NUMBER=${target_PR_NUMBER}
       fi
    done
 else
    # only check the specified PR.
-   approvedtime="$(prapproval ${PR_NUMBER} ${GITHUB_USERNAME})"
+   export approvedtime="$(prapproval ${PR_NUMBER} ${GITHUB_USERNAME})"
 fi
 
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
