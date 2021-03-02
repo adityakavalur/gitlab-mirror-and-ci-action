@@ -179,7 +179,7 @@ then
       #Approvaltime is used to find the latest approved action, that PR will be targeted by CI.
       #This function only returns PRs where the latest commit is approved. 
       temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
-      echo "line 178"
+      echo "line 178: ${temp_approvaltime}"
       if [[ $(printenv approvedtime | wc -c) = 0 ]]
       then
          approvedtime=${temp_approvaltime}
