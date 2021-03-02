@@ -87,6 +87,14 @@ prapproval() (
 
     approved=1
     
+    #Decide whether PR needs to be checked based on REPO_EVENT_TYPE
+    base_repo=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .base.repo.url)
+    head_repo=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.repo.url)
+    if [[ $REPO_EVENT_TYPE == "internal_pr" ]]
+    then
+       if [[ $base_repo != $head_repo ]]; then return 1; fi
+    fi
+    
     #Find the latest commit date and author
     ncommits=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq length)
     ncommits=$(($ncommits - 1))
