@@ -166,7 +166,7 @@ then
    fi
 fi
 
-if [[ $(printenv PR_NUMBER | wc -c) = "0" ]]
+if [[ $(printenv PR_NUMBER | wc -c) == "0" ]]
 then
    # Cycle through all PRs 
    ipr=-1
@@ -198,7 +198,7 @@ fi
 
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
-   if [[ $(printenv approvedtime | wc -c) = "0" ]]
+   if [[ $(printenv approvedtime | wc -c) == "0" ]]
    then
       echo "No approval associated with the target PR(s). CI job will exit"
       exit 1
