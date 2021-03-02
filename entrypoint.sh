@@ -182,15 +182,20 @@ then
       echo "line 178: ${temp_approvaltime}"
       echo "line 179: $(printenv approvedtime | wc -c)"
       echo "line 180: $(printenv temp_approvaltime | wc -c)"
-      if [[ $(printenv approvedtime | wc -c) = 0 ]]
+      if [[ ! -z ${temp_approvaltime} ]] 
       then
-         export approvedtime=${temp_approvaltime}
-	 PR_NUMBER=${target_PR_NUMBER}         
-      elif [[ ${temp_approvaltime} > ${approvedtime} &&  ]] 
-      then 
-         export approvedtime=${temp_approvaltime}
-	 PR_NUMBER=${target_PR_NUMBER}
+         if [[ $(printenv approvedtime | wc -c) = 0 ]]
+         then
+            export approvedtime=${temp_approvaltime}
+	    PR_NUMBER=${target_PR_NUMBER}         
+         elif [[ ${temp_approvaltime} > ${approvedtime} ]] 
+         then 
+            export approvedtime=${temp_approvaltime}
+	    PR_NUMBER=${target_PR_NUMBER}
+         fi
       fi
+      
+      
    done
 else
    # only check the specified PR.
