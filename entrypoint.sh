@@ -181,11 +181,12 @@ then
       temp_approvaltime="$(prapproval ${target_PR_NUMBER} ${GITHUB_USERNAME})"
       echo "line 178: ${temp_approvaltime}"
       echo "line 179: $(printenv approvedtime | wc -c)"
+      echo "line 180: $(printenv temp_approvaltime | wc -c)"
       if [[ $(printenv approvedtime | wc -c) = 0 ]]
       then
          approvedtime=${temp_approvaltime}
 	 PR_NUMBER=${target_PR_NUMBER}         
-      elif [[ ${temp_approvaltime} > ${approvedtime} ]] 
+      elif [[ ${temp_approvaltime} > ${approvedtime} &&  ]] 
       then 
          approvedtime=${temp_approvaltime}
 	 PR_NUMBER=${target_PR_NUMBER}
@@ -200,6 +201,7 @@ if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]
 then
    if [[ $(printenv approvedtime | wc -c) == "0" ]]
    then
+      echo "line 203: ${PR_NUMBER}"
       echo "No approval associated with the target PR(s). CI job will exit"
       exit 1
    fi
