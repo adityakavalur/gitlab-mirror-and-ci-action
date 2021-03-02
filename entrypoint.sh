@@ -330,7 +330,7 @@ done
 echo "Pipeline finished with status ${ci_status}"
 
 #Delete remote branch if PR
-if [[ "${REPO_EVENT_TYPE}" = "pull_request" || "${REPO_EVENT_TYPE}" = "pull_request_target" ]]
+if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
    sh -c "git push mirror --delete ${BRANCH}"
 fi
