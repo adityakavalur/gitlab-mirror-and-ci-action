@@ -207,6 +207,8 @@ then
    fi
 fi
 
+echo "line 210: ${PR_NUMBER}"
+
 #Allowed events
 #There is no need to checkout branches here, it is now done on a specific SHA
 if [ "${REPO_EVENT_TYPE}" = "internal_pr" ]
