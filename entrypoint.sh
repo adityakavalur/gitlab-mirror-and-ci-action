@@ -23,10 +23,8 @@ urlencode() (
 #Approved commit sha
 approvedcommitsha() (
     approved=1
-    SOURCE_PAT=$1
-    GITHUB_USERNAME=$2
-    GITHUB_REPO=$3
-    BRANCH=$4
+    GITHUB_USERNAME=$1
+    BRANCH=$2
     
     #echo "GITHUB_USERNAME: $GITHUB_USERNAME" 
     #echo "GITHUB_REPO: $GITHUB_REPO"
@@ -60,9 +58,7 @@ approvedcommitsha() (
 
 ##################################################################
 branchexists() (
-    SOURCE_PAT=$1
-    GITHUB_REPO=$2
-    BRANCH=$3
+    BRANCH=$1
     #Check if branch for which push/pr testing is requested, exists
     nbranches=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/branches" | jq length)
     branch_exists=1
@@ -146,7 +142,7 @@ echo "GITHUB_USERNAME: $GITHUB_USERNAME"
 #Identify required variables for each type of even and add checks to see if they are empty
 #In push there is no target branch
 if [[ "${REPO_EVENT_TYPE}" == "push" ]]; then TARGET_BRANCH=${BRANCH}; fi
-branchfound="$(branchexists ${SOURCE_PAT} ${GITHUB_REPO} ${TARGET_BRANCH})"
+branchfound="$(branchexists ${TARGET_BRANCH})"
 
 if [[ ${branchfound} != "0" ]]
 then
@@ -262,7 +258,7 @@ then
    #Get the latest commit sha on the target gitlab repository
    base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
-   sha="$(approvedcommitsha ${SOURCE_PAT} ${GITHUB_USERNAME} ${GITHUB_REPO} ${BRANCH})"
+   sha="$(approvedcommitsha ${GITHUB_USERNAME} ${BRANCH})"
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
