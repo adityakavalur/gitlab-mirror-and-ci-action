@@ -40,7 +40,7 @@ approvedcommitsha() (
        icommit=$(($icommit+1))
        #echo "approved: ${approved}"
        #echo "icommit: ${icommit}"
-       commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .commit.author.name}" | jq ".commitauthor")
+       commitauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {commitauthor: .author.login}" | jq ".commitauthor")
        #echo "commitauthor: ${commitauthor}"
        if [[ $commitauthor == $GITHUB_USERNAME ]]; then approved=0; fi
        sha=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" "https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${BRANCH}&per_page=100" | jq ".[$icommit] | {sha: .sha}" | jq ".sha" | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
