@@ -48,7 +48,9 @@ approvedcommitsha() (
        do
           icomment=$(($icomment - 1))
           commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq ".[$icomment] | {commentauthor: .user.login}" | jq ".commentauthor")
-	  if [[ $commentauthor == $GITHUB_USERNAME ]]; then approved=0; fi
+	  curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/commits/$sha/comments | jq ".[$icomment] | {body: .body}"  | grep $APPROVAL_STRING -q
+	  approval_comment=$?
+	  if [[ $commentauthor == $GITHUB_USERNAME && $approval_comment == "0" ]]; then approved=0; fi
        done
     done
     
