@@ -1,45 +1,48 @@
 # Mirror to GitLab and trigger GitLab CI
 
-A GitHub Action that mirrors all commits and pull requests to GitLab. The GitLab CI will be triggered based on the settings of the target repository. This action waits and returns the results of the CI back to GitHub. 
+A GitHub Action that mirrors commits and pull requests from Github to GitLab. The workflow involves 3 repositories, namely: mirror, source(SOURCE_REPO) and target(GITLAB_PROJECT_ID). The mirror and source repositories need to be on Github whereas the target repository is on Gitlab. The mirror repository, through manual action/trigger scans the source repo and clones selective items to the target repository. Examples of github actions in the mirror repository are provided below. CI in Gitlab will be triggered based on the settings of the target repository. This action will wait and return the status and url of the pipeline back to the source repository on GitHub. 
 
-To provide some level of security, branch `secure` restricts what changes can be imported (and therefore initiate CI) into Gitlab. A list of pre-approved authors are allowed to push and submit pull requests (in-repo and fork) with no further requirements. Users not in this list are not allowed to push (i.e. their pushes will not be reflected on the Gitlab side). However, these users can submit changes through pull requests. These pull requests require an approval in the form of a label: `triggerlabel` , and a comment: `triggerstring` from a pre-approved user before they can be executed. Each new commit requires both of these actions to be repeated. Pre-approved users are expected to review the code before undertaking these actions. The current definition of pre-approved authors is drawn from the list collaborators, in case the project is in an organization, or the owner of the project in cases where it is in a users namespace.
+To provide some level of security, branch `secure-external` restricts what commits can be cloned (and therefore initiate CI) into Gitlab. Activites tied to the (approved-)user providing the SOURCE_PAT, a Github token, are eligible to be cloned. The events considered are push and pull requests. Commits, based in push or in a pull request, are eligible if they are authored by the approved-user or if the commit/PR has an approval comment associated with it. In the case of testing a PR the comment must be more recent than the latest commit. The approved user is expected to review the code before undertaking these actions. 
 
-The most common workflow is submitting pull requests from forks. We accomodate this workflow by using `pull_request_target`. This allows actions initiated by pull requests of forks to inherit secrets in the context of the commit of the base ref i.e. the commit of the branch in the target repo. This protects the secret from exposure in a modified github action. To test the code modifications we then manually change to the head of the fork repo in a temporary branch `external-pr-${PR_NUMBER}`. Therefore, while the repo secrets are protected for the current pull request, the approving user is expected to look out for malicious code within the context of the repo itself as well as modifications to the github actions for workflows moving forward.
+The most common workflow is testing pull requests from forks. To test the code modifications we source the fork repo and create a temporary branch `external-pr-${PR_NUMBER}` on the Gitlab instance. All branches associated with pull requests will be deleted from Gitlab at the end of the action. It is important to remember that all actions including pull requests end up as pushes on the Gitlab side. Therefore, your `.gitlab-ci.yml` file needs to account for this.
 
-It is important to remember that all actions including pull requests end up as pushes on the Gitlab side. Therefore, your `.gitlab-ci.yml` file needs to account for this.
+Push workflows target a specific branch. Whereas PRs can target a specific PR by providing the optional argument PR_NUMBER
 
 ## Example workflows
 
 There are 3 example workflows: push, pull_request and pull_request_target
 
-```workflow
-name: Push testing
-on: 
-  push:
-    branches: [ main ]
+```workflow          
+name: Mirror commits
+on: workflow_dispatch
 jobs:
-  pushtest:
+  pushmirror:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        if: github.event_name == 'push'
         with:
+          # This should be the same as GITHUB_REPO below, this is the SOURCE_REPO which is being polled for commits and PRs
+          repository: <namespace>/<repo_name>
+          token: ${{ secrets.SOURCE_PAT }}
           fetch-depth: 0
       - name: Push testing on external Gitlab
-        uses: adityakavalur/gitlab-mirror-and-ci-action@secure
+        uses: adityakavalur/gitlab-mirror-and-ci-action@secure-external
         with:
-          args: "https://gitlab.com/<namespace>/<repository.git>"
+          args: "https://gitlab.com/<namespace>/<repo_name>.git"
         env:
           GITLAB_HOSTNAME: "gitlab.com"
           GITLAB_USERNAME: "<your gitlab username>"
-          #Personal Access Token generated on your gitlab account
-          GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD_ALL }}
-          GITLAB_PROJECT_ID: "<gitlab project id>"
-          #The below is generated by github automatically
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #The below password is really a PAT, needs write
+          GITLAB_PASSWORD: ${{ secrets.GITLAB_PAT }}
+          #The below password is a GITHUB PAT, GITHUB does not allow secrets with the name GITHUB in them.
+          SOURCE_PAT: ${{ secrets.SOURCE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.SOURCE_PAT }}
+          GITLAB_PROJECT_ID: "<Gitlab project id>"
           POLL_TIMEOUT: "120"
-          GITHUB_EVENT_NAME: github.event_name
-          
+          REPO_EVENT_TYPE: push
+          BRANCH: main
+          GITHUB_REPO: <namespace>/<repo_name>
+          APPROVAL_STRING: triggerstring
           
 name: Pull testing pre-approved author
 on: pull_request
@@ -67,33 +70,64 @@ jobs:
           GITHUB_EVENT_NAME: github.event_name
           PR_NUMBER: ${{ github.event.pull_request.number }}  
           
-name: PR Label
-on: 
-  pull_request_target:
-    types:
-      - labeled
+name: Internal PR
+on: workflow_dispatch
 jobs:
-  PR_Label:
+  internalpr:
+    runs-on: ubuntu-latest
+    steps:        
+      - uses: actions/checkout@v2
+        with:
+          # This should be the same as GITHUB_REPO below, this is the SOURCE_REPO which is being polled for commits and PRs
+          repository: <namespace>/<repo_name>
+          token: ${{ secrets.SOURCE_PAT }}
+          fetch-depth: 0
+      - name: Internal PR testing on external Gitlab
+        uses: adityakavalur/gitlab-mirror-and-ci-action@secure-external
+        with:
+          args: "https://gitlab.com/<namespace>/<repo_name>.git"
+        env:
+          GITLAB_HOSTNAME: "gitlab.com"
+          GITLAB_USERNAME: "<your gitlab username>"
+          GITLAB_PASSWORD: ${{ secrets.GITLAB_PAT }}
+          SOURCE_PAT: ${{ secrets.SOURCE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.SOURCE_PAT }}
+          GITLAB_PROJECT_ID: "<gitlab project id>"
+          POLL_TIMEOUT: "120"
+          REPO_EVENT_TYPE: internal_pr
+          TARGET_BRANCH: main
+          GITHUB_REPO: <namespace>/<repo_name>
+          PR_NUMBER: <Optional>
+          APPROVAL_STRING: <approval comment that authorizes commits by non-approved users>
+
+name: Fork PR
+on: workflow_dispatch
+jobs:
+  forkpr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
+          repository: <namespace>/<repo_name>
+          token: ${{ secrets.SOURCE_PAT }}
           fetch-depth: 0
-      - name: Push testing on external Gitlab
-        uses: adityakavalur/gitlab-mirror-and-ci-action@secure
+      - name: Fork PR testing on external Gitlab
+        uses: adityakavalur/gitlab-mirror-and-ci-action@secure-external
         with:
-          args: "https://gitlab.com/<namespace>/<repository.git>"
+          args: "https://gitlab.com/<namespace>/<repo_name>.git"
         env:
-          GITLAB_HOSTNAME: "<gitlab domain>"
+          GITLAB_HOSTNAME: "gitlab.com"
           GITLAB_USERNAME: "<your gitlab username>"
-          #Personal Access Token generated on your gitlab account
-          GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD_ALL }}
+          GITLAB_PASSWORD: ${{ secrets.GITLAB_PAT }}
+          SOURCE_PAT: ${{ secrets.SOURCE_PAT }}
+          GITHUB_TOKEN: ${{ secrets.SOURCE_PAT }}
           GITLAB_PROJECT_ID: "<gitlab project id>"
-          #The below is generated by github automatically
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           POLL_TIMEOUT: "120"
-          GITHUB_EVENT_NAME: github.event_name
-          PR_NUMBER: ${{ github.event.pull_request.number }}            
+          REPO_EVENT_TYPE: fork_pr
+          TARGET_BRANCH: main
+          GITHUB_REPO: <namespace>/<repo_name>
+          PR_NUMBER: <Optional>
+          APPROVAL_STRING: triggerstring
 ```
 
-Be sure to define the `GITLAB_PASSWORD_ALL` secret.
+Be sure to define the secrets `SOURCE_PAT` and `GITLAB_PAT` in secrets.
