@@ -126,12 +126,15 @@ prapproval() (
 )
 ##################################################################
 
+#TODO: If below preapproved is set to 0, all the checks should be short-circuited.
 preapproved=1
 DEFAULT_POLL_TIMEOUT=10
 POLL_TIMEOUT=${POLL_TIMEOUT:-$DEFAULT_POLL_TIMEOUT}
 
 echo "CI job triggered by event- $REPO_EVENT_TYPE"
-#Check if REPO_EVENT_TYPE specified above is supported
+#Check if REPO_EVENT_TYPE specified above is supported. 
+#At present the only difference in internal_pr and fork_pr is how the branch is named on the GITLAB side.
+# This is because we dont want 'main' from fork to overwrite 'main' from the upstream repo on the Gitlab side
 if [[ ${REPO_EVENT_TYPE} != "push" && ${REPO_EVENT_TYPE} != "internal_pr" && ${REPO_EVENT_TYPE} != "fork_pr"  ]]
 then
    echo "Only PR and Push testing are currently supported. CI will exit"
@@ -140,22 +143,23 @@ fi
 
 
 #Retrieve Github username of SOURCE_PAT
+#This author is used for approval
 GITHUB_USERNAME=$(curl -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.v3+json" --silent https://api.github.com/user | jq .login) 
-echo "GITHUB_USERNAME: $GITHUB_USERNAME"
 
 
-#Identify required variables for each type of even and add checks to see if they are empty
-#In push there is no target branch
+#TODO: Add a list of required variables for each type of event. The job will fail if any are empty
+#In push there is no 'target branch', so we populate both variables with the same name
 if [[ "${REPO_EVENT_TYPE}" == "push" ]]; then TARGET_BRANCH=${BRANCH}; fi
 branchfound="$(branchexists ${TARGET_BRANCH})"
 
+#Maybe move the below branch check along with the overall variable values check (after that is implemented)
 if [[ ${branchfound} != "0" ]]
 then
    echo "Branch ${TARGET_BRANCH} not found in the repo, CI job will exit"
    exit 1
 fi
 
-#If PR Number is specified use that or else find the latest acceptable PR
+#Maybe move the below pr check along with the overall variable values check (after that is implemented)
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
    #number of open pr's
@@ -167,6 +171,8 @@ then
    fi
 fi
 
+#If PR Number is specified use that or else find the latest acceptable PR
+#An acceptable PR is one that has the latest commit from the user $GITHUB_USERNAME or an approval comment by said user.
 if [[ $(printenv PR_NUMBER | wc -c) == "0" ]]
 then
    # Cycle through all PRs 
@@ -191,14 +197,13 @@ then
             export approvedtime=${temp_approvaltime}
 	    PR_NUMBER=${target_PR_NUMBER}
          fi
-      fi
-      
-      
+      fi  
    done
 else
    # only check the specified PR.
    export approvedtime="$(prapproval ${PR_NUMBER} ${GITHUB_USERNAME})"
 fi
+
 
 if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]]
 then
@@ -210,8 +215,8 @@ then
 fi
 
 
-#Allowed events
-#There is no need to checkout branches here, it is now done on a specific SHA
+#PR already has a valid source at this point (or has exit). Push testing is essentially different in that it is part of the upstream repo.
+#Checkout the branches in the VM so that they can pushed to Gitlab
 if [ "${REPO_EVENT_TYPE}" = "internal_pr" ]
 then
    BRANCH=$(curl --silent -H "Authorization: token ${SOURCE_PAT}" -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER} | jq .head.ref | sed "s/\\\"/\\,/g" | sed s/\[,\]//g)
@@ -237,31 +242,26 @@ then
 fi
 
 
-if [[ "${REPO_EVENT_TYPE}" = "fork_pr" ]]
-then
-   echo "list fork repo (if pr from fork): ${fork_repo}"
-fi
-
-
 branch_uri="$(urlencode ${BRANCH})"
 
 #Approval section
 if [ "${REPO_EVENT_TYPE}" = "push" ]
 then
-   #Get the latest commit sha on the target gitlab repository
+   #Get the latest commit sha on the target gitlab repository. This is currently not being used but can provide a good sanity check.
    base_commitsha=$(curl --header "PRIVATE-TOKEN: $GITLAB_PASSWORD" "https://${GITLAB_HOSTNAME}/api/v4/projects/${GITLAB_PROJECT_ID}/repository/commits?ref_name=${BRANCH}" --silent | jq ".[0] | {id: .id}")
    #Run through the recent 100 commits to find the latest than can be cloned
+   #Like the PR an acceptable commit is one which was commited by the user $GITHUB_USERNAME or has an approval comment by them
    sha="$(approvedcommitsha ${GITHUB_USERNAME} ${BRANCH})"
    echo "sha: $sha"
    if [[ $sha != "nil" ]]
    then
       #TODO: check if base_commitsha is older than sha before pushing
-      preapproved=0
+      approved=0
       git checkout $sha
    fi
 fi
 
-if [[ "${preapproved}" != "0" && "${REPO_EVENT_TYPE}" = "push" ]]
+if [[ "${approved}" != "0" && "${REPO_EVENT_TYPE}" = "push" ]]
 then
    echo "Commit author ${commitauthor} not associated with repository. Push testing not allowed. CI will exit"
    exit 1
@@ -324,7 +324,7 @@ then
    sh -c "git push mirror --delete ${BRANCH}"
 fi
 
-#Checkout how this works with fork-prs
+#TODO: change the context from gitlab-ci to something based on a variable
 if [ "$ci_status" = "success" ]
 then 
   curl -d '{"state":"success", "target_url": "'${ci_web_url}'", "context": "gitlab-ci"}' -H "Authorization: token ${SOURCE_PAT}"  -H "Accept: application/vnd.github.antiope-preview+json" -X POST --silent "https://api.github.com/repos/${GITHUB_REPO}/statuses/${sha}" 
