@@ -97,7 +97,7 @@ prapproval() (
     commitdate=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {created_at: .commit.author.date}" | jq ".created_at")
     commitauthor=$(curl --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/commits | jq ".[${ncommits}] | {commit_author: .commit.author.name}" | jq .commit_author)
 
-    if [[ $commitauthor == $GITHUB_USERNAME ]]; then approved=0; fi
+    if [[ $commitauthor == $GITHUB_USERNAME ]]; then approved=0; echo "${commitdate}"; fi
     
     #If commit author is not approved, check comments
     if [[ ${approved} != "0" ]]
@@ -116,7 +116,7 @@ prapproval() (
           if [ "${approval_comment}" = "0" && ${commentdate} > ${commitdate} ]
           then
              commentauthor=$(curl -H "Authorization: token ${SOURCE_PAT}" --silent -H "Accept: application/vnd.github.antiope-preview+json" https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/comments | jq ".[$icomment] | {commenter: .user.login}" | jq ".commenter")
-	     if [[ $commentauthor == $GITHUB_USERNAME ]]; then approved=0; fi
+	     if [[ $commentauthor == $GITHUB_USERNAME ]]; then approved=0; echo "${commentdate}"; fi
              approval_comment=$?
           fi
        done
