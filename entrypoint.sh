@@ -247,9 +247,7 @@ then
 fi
 
 
-branch="$(git symbolic-ref --short HEAD)"
-echo "branch: l107: ${branch}"
-branch_uri="$(urlencode ${branch})"
+branch_uri="$(urlencode ${BRANCH})"
 echo "branch: l109: ${branch_uri}"
 
 #Approval section
