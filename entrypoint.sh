@@ -206,7 +206,6 @@ if [[ "${REPO_EVENT_TYPE}" = "internal_pr" || "${REPO_EVENT_TYPE}" = "fork_pr" ]
 then
    if [[ $(printenv approvedtime | wc -c) == "0" ]]
    then
-      echo "line 203: ${PR_NUMBER}"
       echo "No approval associated with the target PR(s). CI job will exit"
       exit 1
    fi
